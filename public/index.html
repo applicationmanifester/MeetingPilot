@@ -528,6 +528,10 @@ button{cursor:pointer}
     <div class="badges">
       <span class="tag"><span class="tag-pulse"></span>Live MCP Server</span>
       <span class="pill" style="background:#e0e7ff;color:#3730a3;font-weight:700">0 AI Inside · Pure Claude MCP</span>
+      <button id="backendPill" class="tag" style="background:#f1f5f9;color:var(--ink-secondary);border-color:var(--line-strong);cursor:pointer;text-decoration:none" onclick="configureBackend()" title="Configure API Backend / Render URL">
+        <span class="tag-pulse" id="backendPulse" style="background:#10b981"></span>
+        <span id="backendText">Backend: Connecting...</span>
+      </button>
     </div>
   </header>
 
@@ -866,18 +870,187 @@ button{cursor:pointer}
 <script>
 const $ = id => document.getElementById(id);
 let actions = [], meetings = [], auditLogs = [], analytics = {}, webhooks = [];
+let isLocalFallback = false;
+
+function getApiBase() {
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return '';
+  }
+  const custom = localStorage.getItem('meetingpilot_api_base');
+  if (custom) return custom.replace(/\/$/, '');
+  return 'https://meetingpilot.onrender.com';
+}
+
+function updateBackendStatus(online, label) {
+  const el = $('backendText');
+  const pill = $('backendPill');
+  const pulse = $('backendPulse');
+  if (!el || !pill) return;
+  if (online) {
+    el.textContent = label || 'Backend: Online';
+    pill.style.borderColor = '#a7f3d0';
+    pill.style.background = '#ecfdf5';
+    pill.style.color = '#059669';
+    if (pulse) pulse.style.background = '#059669';
+  } else {
+    el.textContent = label || 'Backend: Standalone Demo (Click)';
+    pill.style.borderColor = '#fde68a';
+    pill.style.background = '#fffbeb';
+    pill.style.color = '#b45309';
+    if (pulse) pulse.style.background = '#f59e0b';
+  }
+}
+
+window.configureBackend = () => {
+  const current = localStorage.getItem('meetingpilot_api_base') || getApiBase();
+  const val = prompt('Configure MeetingPilot Backend API URL:\n(Enter your live Render URL or tunnel, e.g., https://meetingpilot.onrender.com):', current);
+  if (val !== null) {
+    if (val.trim()) {
+      localStorage.setItem('meetingpilot_api_base', val.trim().replace(/\/$/, ''));
+    } else {
+      localStorage.removeItem('meetingpilot_api_base');
+    }
+    location.reload();
+  }
+};
 
 const api = async (url, opts = {}) => {
-  const r = await fetch(url, {
+  const base = getApiBase();
+  const fullUrl = url.startsWith('http') ? url : (base + url);
+  const r = await fetch(fullUrl, {
     headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
     ...opts
   });
-  if (!r.ok) {
-    const err = await r.json().catch(() => ({ error: 'Request failed' }));
-    throw new Error(err.error || 'Request failed');
+  const contentType = r.headers.get('content-type') || '';
+  if (!r.ok || !contentType.includes('application/json')) {
+    const text = await r.text().catch(() => '');
+    throw new Error(`API returned ${r.status}: ${text.slice(0, 80) || 'Invalid response'}`);
   }
   return r.json();
 };
+
+function computeAnalytics() {
+  const currentWs = $('workspaceSelect').value;
+  const filtered = actions.filter(a => currentWs === 'all' || a.workspace_id === currentWs);
+  const totalActions = filtered.length;
+  const done = filtered.filter(a => a.status === 'Done').length;
+  const overdueCount = filtered.filter(a => isOverdue(a.due_date, a.status)).length;
+  const inProgress = filtered.filter(a => a.status === 'In Progress').length;
+  const pendingFinancialAmount = filtered
+    .filter(a => a.category === 'Financial Approval' && a.status !== 'Done')
+    .reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
+  const sayDoRatio = totalActions > 0 ? Math.round((done / totalActions) * 100) : 100;
+  
+  const byOwner = {};
+  for (const a of filtered) {
+    const o = a.owner || 'Unassigned';
+    if (!byOwner[o]) byOwner[o] = { total: 0, done: 0, overdue: 0 };
+    byOwner[o].total++;
+    if (a.status === 'Done') byOwner[o].done++;
+    if (isOverdue(a.due_date, a.status)) byOwner[o].overdue++;
+  }
+
+  analytics = {
+    totalActions,
+    totalMeetings: meetings.filter(m => currentWs === 'all' || m.workspace_id === currentWs).length,
+    done,
+    open: filtered.filter(a => a.status === 'Open').length,
+    inProgress,
+    overdueCount,
+    pendingFinancialAmount,
+    sayDoRatio,
+    byOwner
+  };
+}
+
+function loadFallbackDemoData() {
+  isLocalFallback = true;
+  const today = new Date().toISOString().split('T')[0];
+  const friday = new Date(Date.now() + 2 * 86400000).toISOString().split('T')[0];
+  const pastWed = new Date(Date.now() - 3 * 86400000).toISOString().split('T')[0];
+
+  meetings = [
+    {
+      id: 'mtg-demo-1',
+      workspace_id: 'prod-eng',
+      title: 'Weekly Product & Architecture Sync',
+      meeting_date: today,
+      attendees: ['Bhargav', 'Priya', 'Alex'],
+      notes: 'Reviewed MVP launch criteria, MCP connector reliability, and live demo recording.'
+    },
+    {
+      id: 'mtg-demo-2',
+      workspace_id: 'finance-ops',
+      title: 'Monthly Spend & Vendor Approval Review',
+      meeting_date: pastWed,
+      attendees: ['Bhargav', 'Sarah', 'Karthik'],
+      notes: 'Approved cloud infrastructure budget and evaluated enterprise tool licenses.'
+    },
+    {
+      id: 'mtg-demo-3',
+      workspace_id: 'exec',
+      title: 'Q4 OKR & Executive Velocity Sync',
+      meeting_date: today,
+      attendees: ['Bhargav', 'Leadership Team'],
+      notes: 'Reviewed Say-Do ratios across departments; prioritized 97.5% gross margin target.'
+    }
+  ];
+
+  actions = [
+    {
+      id: 'act-demo-1',
+      workspace_id: 'prod-eng',
+      workspace_name: 'Product & Engineering',
+      meeting_id: 'mtg-demo-1',
+      meeting_title: 'Weekly Product & Architecture Sync',
+      title: 'Finalize MCP Streamable HTTP & SSE transport endpoints',
+      description: 'Ensure backward-compatible support for Claude Code, Claude Desktop, and webhooks.',
+      owner: 'Bhargav',
+      due_date: friday,
+      priority: 'High',
+      status: 'Open',
+      amount: 0,
+      category: 'Engineering'
+    },
+    {
+      id: 'act-demo-2',
+      workspace_id: 'finance-ops',
+      workspace_name: 'Finance & Spend Approvals',
+      meeting_id: 'mtg-demo-2',
+      meeting_title: 'Monthly Spend & Vendor Approval Review',
+      title: 'Authorize AWS / Render annual compute reservation',
+      description: 'Sign off on $12,400 multi-cloud reservation to reduce baseline server costs by 34%.',
+      owner: 'Sarah',
+      due_date: friday,
+      priority: 'High',
+      status: 'Open',
+      amount: 12400,
+      category: 'Financial Approval'
+    },
+    {
+      id: 'act-demo-3',
+      workspace_id: 'exec',
+      workspace_name: 'Executive Leadership',
+      meeting_id: 'mtg-demo-3',
+      meeting_title: 'Q4 OKR & Executive Velocity Sync',
+      title: 'Record 5-minute Volopay challenge walkthrough video',
+      description: 'Cover who you are, best work, economics, and live Claude MCP demo.',
+      owner: 'Bhargav',
+      due_date: today,
+      priority: 'High',
+      status: 'Done',
+      amount: 0,
+      category: 'Compliance'
+    }
+  ];
+
+  auditLogs = [
+    { id: 'aud-1', action: 'create_action_item', actor: 'Claude via MCP', details: 'Created action "Finalize MCP Streamable HTTP & SSE transport endpoints"', created_at: new Date().toISOString() },
+    { id: 'aud-2', action: 'toggle_status', actor: 'Human via Dashboard', details: 'Marked "Record 5-minute Volopay challenge walkthrough video" as Done', created_at: new Date(Date.now() - 3600000).toISOString() }
+  ];
+
+  computeAnalytics();
+}
 
 function toast(msg) {
   const t = $('toast');
@@ -1030,9 +1203,18 @@ async function load() {
     auditLogs = aud;
     analytics = an;
     webhooks = wh;
+    isLocalFallback = false;
+    updateBackendStatus(true);
     render();
   } catch (e) {
-    toast(e.message);
+    console.warn('Backend load failed, falling back to local demo state:', e.message);
+    updateBackendStatus(false);
+    if (!actions.length) {
+      loadFallbackDemoData();
+    } else {
+      computeAnalytics();
+    }
+    render();
   }
 }
 
@@ -1040,6 +1222,20 @@ window.toggleActionDone = async id => {
   const item = actions.find(a => a.id === id);
   if (!item) return;
   const nextStatus = item.status === 'Done' ? 'Open' : 'Done';
+  if (isLocalFallback) {
+    item.status = nextStatus;
+    auditLogs.unshift({
+      id: 'aud-' + Date.now(),
+      action: 'toggle_status',
+      actor: 'Human via Dashboard',
+      details: `Updated "${item.title}" to ${nextStatus}`,
+      created_at: new Date().toISOString()
+    });
+    computeAnalytics();
+    render();
+    toast(nextStatus === 'Done' ? 'Marked as completed (Demo Mode)' : 'Reopened action item (Demo Mode)');
+    return;
+  }
   try {
     await api('/api/actions/' + id, {
       method: 'PATCH',
@@ -1080,7 +1276,8 @@ window.rolloverMeeting = async meetingId => {
 
 window.exportCsv = () => {
   const ws = $('workspaceSelect').value;
-  window.open('/api/actions/export-csv?workspace_id=' + ws, '_blank');
+  const base = getApiBase();
+  window.open((base || '') + '/api/actions/export-csv?workspace_id=' + ws, '_blank');
 };
 
 function openModal(a) {
@@ -1224,7 +1421,7 @@ window.switchView = viewId => {
 };
 
 // MCP Setup Links & Tabs
-const mcpEndpoint = location.origin + '/mcp';
+const mcpEndpoint = (getApiBase() || location.origin) + '/mcp';
 $('mcpUrl').textContent = mcpEndpoint;
 
 $('copyMcp').onclick = async () => {
