@@ -112,7 +112,12 @@ function validateAction(b) {
 const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).describe('ISO date YYYY-MM-DD. Resolve relative dates like "Friday" yourself.');
 const RO = { readOnlyHint: true };
 function buildMcpServer() {
-  const server = new McpServer({ name: 'meetingpilot', version: '1.0.0' });
+  const server = new McpServer(
+    { name: 'meetingpilot', version: '1.0.0' },
+    {
+      instructions: 'MeetingPilot stores meetings and the action items that come out of them. You do the thinking, summarizing, and writing. MeetingPilot persists, lists, updates, and keeps commitments live. Tools: create_meeting, add_action_item, list_meetings, list_action_items, update_action_item, delete_action_item, update_meeting, delete_meeting, get_dashboard_summary. There is no AI model inside MeetingPilot.'
+    }
+  );
   server.tool('create_meeting', 'Save a meeting record in MeetingPilot. Use this after the user asks to capture a meeting.', {
     title: z.string().min(1), meeting_date: DATE.optional(),
     attendees: z.array(z.string()).optional(), notes: z.string().optional()
@@ -263,7 +268,28 @@ app.post('/mcp', async (req, res) => {
 });
 app.get('/mcp', async (req, res) => {
   if (!authorized(req)) return res.status(401).end();
-  res.status(405).set('Allow', 'POST').send('Use Streamable HTTP POST requests.');
+  res.json({
+    name: 'MeetingPilot MCP Server',
+    status: 'active',
+    transport: 'streamable-http',
+    authentication: 'none',
+    endpoints: {
+      streamableHttp: '/mcp (POST)',
+      serverSentEvents: '/sse (GET)'
+    },
+    tools: [
+      'create_meeting',
+      'add_action_item',
+      'list_meetings',
+      'list_action_items',
+      'update_action_item',
+      'delete_action_item',
+      'update_meeting',
+      'delete_meeting',
+      'get_dashboard_summary'
+    ],
+    note: 'To connect Claude, add remote MCP server URL pointing to POST /mcp.'
+  });
 });
 app.delete('/mcp', async (req, res) => {
   if (!authorized(req)) return res.status(401).end();
