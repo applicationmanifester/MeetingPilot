@@ -6,7 +6,6 @@
 <title>MeetingPilot — Enterprise Meeting Action Management</title>
 <meta name="description" content="Enterprise meeting accountability and action-management SaaS powered by Claude via MCP. Zero AI inside.">
 <script>try{document.documentElement.dataset.theme=localStorage.getItem('meetingpilot_theme')||'light'}catch{document.documentElement.dataset.theme='light'}</script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --bg:#f8fafc;
@@ -275,6 +274,7 @@ button{cursor:pointer}
   transition:all 0.15s ease;
 }
 .chip:hover{border-color:var(--line-strong);color:var(--ink)}
+.chip:focus-visible,.vtab-btn:focus-visible,.theme-toggle:focus-visible,.task-check:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
 .chip.active{
   background:var(--blue-light);
   color:var(--blue);
@@ -569,6 +569,15 @@ button{cursor:pointer}
 }
 .toast.show{display:block;animation:slideIn 0.2s ease}
 @keyframes slideIn{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
+.connection-notice{display:none;align-items:center;justify-content:space-between;gap:12px;margin:0 0 18px;padding:12px 14px;border:1px solid #f2c66d;border-radius:10px;background:#fff8e7;color:#77510b;font-size:13px}
+.connection-notice.visible{display:flex}
+body.backend-offline #newMeeting,body.backend-offline #newAction,
+body.backend-offline .task .iconbtn,body.backend-offline .task-check,
+body.backend-offline .mtg .iconbtn,body.backend-offline #webhookForm button,
+body.backend-offline .modal button[type="submit"],body.backend-offline .modal form{
+  pointer-events:none;opacity:.5;cursor:not-allowed
+}
+@media(max-width:600px){.connection-notice{align-items:flex-start;flex-direction:column}}
 
 /* Dark theme for surfaces that use fixed light colors in the original palette. */
 :root[data-theme="dark"] .ws-picker,
@@ -649,11 +658,16 @@ button{cursor:pointer}
       <span class="pill" style="background:#e0e7ff;color:#3730a3;font-weight:700">0 AI Inside · Pure Claude MCP</span>
       <button id="backendPill" class="tag" style="background:#ecfdf5;color:var(--green);border-color:#a7f3d0;cursor:pointer" onclick="runLiveHandshakeTest()" title="Click to test live backend connection">
         <span class="tag-pulse" id="backendPulse"></span>
-        <span id="backendText">Backend: Online (15 tools)</span>
+        <span id="backendText">Backend: Checking…</span>
       </button>
       <button class="btn-ghost" onclick="configureBackend()" style="padding:6px 12px;font-size:12px;font-weight:700">⚙️ Config</button>
     </div>
   </header>
+
+  <div id="connectionNotice" class="connection-notice" role="status" aria-live="polite">
+    <span><strong>Demo view only.</strong> The backend is offline; edits cannot be saved. Retry when the connection is back.</span>
+    <button id="retryBackend" class="btn-ghost" type="button" style="padding:5px 10px;font-size:12px">Retry connection</button>
+  </div>
 
   <!-- Overdue Alert Strip (Shown only when overdue > 0) -->
   <div class="overdue-strip" id="overdueAlert" style="display:none">
@@ -674,9 +688,8 @@ button{cursor:pointer}
       <p>Claude is the reasoning layer — capturing consensus and defining commitments. MeetingPilot is the single source of truth that holds teams accountable. Zero AI inside.</p>
     </div>
     <div class="header-actions">
-      <button class="btn-ghost" id="seedBtn" title="Load sample multi-department data">🔄 Seed demo data</button>
-      <button class="secondary" id="newMeeting">＋ New meeting</button>
-      <button class="primary" id="newAction">＋ New commitment</button>
+      <button class="secondary" id="newMeeting" type="button">＋ New meeting</button>
+      <button class="primary" id="newAction" type="button">＋ New commitment</button>
     </div>
   </section>
 
@@ -709,12 +722,12 @@ button{cursor:pointer}
   </section>
 
   <!-- Navigation View Tabs -->
-  <div class="view-tabs">
-    <button class="vtab-btn active" onclick="switchView('board')">📋 Meetings & Commitments</button>
-    <button class="vtab-btn" onclick="switchView('decisions')">🎯 Decision Register</button>
-    <button class="vtab-btn" onclick="switchView('analytics')">📊 Say-Do Velocity & Owners</button>
-    <button class="vtab-btn" onclick="switchView('audit')">📜 Audit Trail (Attribution)</button>
-    <button class="vtab-btn" onclick="switchView('integrations')">⚙️ Integrations & Webhooks</button>
+  <div class="view-tabs" role="tablist" aria-label="Dashboard views">
+    <button class="vtab-btn active" role="tab" aria-selected="true" onclick="switchView('board', this)">📋 Meetings & Commitments</button>
+    <button class="vtab-btn" role="tab" aria-selected="false" onclick="switchView('decisions', this)">🎯 Decision Register</button>
+    <button class="vtab-btn" role="tab" aria-selected="false" onclick="switchView('analytics', this)">📊 Say-Do Velocity & Owners</button>
+    <button class="vtab-btn" role="tab" aria-selected="false" onclick="switchView('audit', this)">📜 Audit Trail (Attribution)</button>
+    <button class="vtab-btn" role="tab" aria-selected="false" onclick="switchView('integrations', this)">⚙️ Integrations & Webhooks</button>
   </div>
 
   <section class="layout">
@@ -758,11 +771,11 @@ button{cursor:pointer}
 
           <!-- Quick Filter Chips -->
           <div class="chips">
-            <span class="chip active" id="chip-all" onclick="applyQuickFilter('all')">All</span>
-            <span class="chip" id="chip-overdue" onclick="applyQuickFilter('overdue')">⚠️ Overdue (<span id="chipOverdueCount">0</span>)</span>
-            <span class="chip" id="chip-unassigned" onclick="applyQuickFilter('unassigned')">👤 Unassigned (<span id="chipUnassignedCount">0</span>)</span>
-            <span class="chip" id="chip-open" onclick="applyQuickFilter('open')">⏳ Active (<span id="chipOpenCount">0</span>)</span>
-            <span class="chip" id="chip-done" onclick="applyQuickFilter('done')">✓ Done (<span id="chipDoneCount">0</span>)</span>
+            <button class="chip active" id="chip-all" type="button" aria-pressed="true" onclick="applyQuickFilter('all')">All</button>
+            <button class="chip" id="chip-overdue" type="button" aria-pressed="false" onclick="applyQuickFilter('overdue')">⚠️ Overdue (<span id="chipOverdueCount">0</span>)</button>
+            <button class="chip" id="chip-unassigned" type="button" aria-pressed="false" onclick="applyQuickFilter('unassigned')">👤 Unassigned (<span id="chipUnassignedCount">0</span>)</button>
+            <button class="chip" id="chip-open" type="button" aria-pressed="false" onclick="applyQuickFilter('open')">⏳ Active (<span id="chipOpenCount">0</span>)</button>
+            <button class="chip" id="chip-done" type="button" aria-pressed="false" onclick="applyQuickFilter('done')">✓ Done (<span id="chipDoneCount">0</span>)</button>
           </div>
 
           <div id="taskList"></div>
@@ -1033,30 +1046,12 @@ button{cursor:pointer}
 <!-- Backend Configuration Modal -->
 <div class="modal" id="backendModal">
   <div class="dialog">
-    <h2>⚙️ Backend & Supabase Configuration</h2>
-    <p style="font-size:13px;color:var(--muted);margin-top:-10px;margin-bottom:16px">Connect MeetingPilot to Supabase Cloud for persistent PostgreSQL storage & realtime sync, or configure a custom Node MCP backend.</p>
-    
-    <div style="background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:16px">
-      <div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#1e293b">⚡ Option 1: Supabase Cloud Database</div>
-      <div class="field" style="margin-bottom:10px">
-        <label>Supabase Project URL</label>
-        <input id="cfg_sb_url" placeholder="https://magysstkgdiyqvmfbjjc.supabase.co" value="https://magysstkgdiyqvmfbjjc.supabase.co">
-      </div>
-      <div class="field">
-        <label>Supabase Anon / Service Role Key</label>
-        <input id="cfg_sb_key" type="password" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
-      </div>
-      <div style="margin-top:10px;display:flex;gap:8px">
-        <button class="primary" type="button" id="cfgSaveSb" style="font-size:12px;padding:6px 14px">Save Supabase Connection</button>
-        <button class="btn-ghost" type="button" id="cfgClearSb" style="font-size:12px;padding:6px 14px">Disconnect Supabase</button>
-      </div>
-    </div>
-
+    <h2>⚙️ Backend Connection</h2>
+    <p style="font-size:13px;color:var(--muted);margin-top:-10px;margin-bottom:16px">The dashboard and Claude use the same Node backend. Supabase credentials stay on the server and are never saved in this browser.</p>
     <div style="background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:14px">
-      <div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#1e293b">🌐 Option 2: Live Node MCP API Server / Public Tunnel</div>
       <div class="field">
-        <label>Live API / MCP Server URL</label>
-        <input id="cfg_api_url" placeholder="https://b617ed4c4494b3.lhr.life or http://localhost:3001">
+        <label>Backend URL</label>
+        <input id="cfg_api_url" placeholder="https://your-meetingpilot-service.onrender.com or http://localhost:3001">
       </div>
       <div style="margin-top:10px;display:flex;gap:8px">
         <button class="secondary" type="button" id="cfgSaveApi" style="font-size:12px;padding:6px 14px">Save Live URL</button>
@@ -1087,25 +1082,13 @@ setTheme(document.documentElement.dataset.theme || 'light');
 themeToggle.addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
 let actions = [], meetings = [], auditLogs = [], analytics = {}, webhooks = [];
 let isLocalFallback = false;
+let loadInFlight = false;
 let activeQuickFilter = 'all';
+let backendToolCount = 0;
 
-// Default public live backend tunnel verified on localhost.run
-const DEFAULT_LIVE_BACKEND = 'https://fc10b459a0aeae.lhr.life';
-const DEFAULT_SB_URL = 'https://magysstkgdiyqvmfbjjc.supabase.co';
-
-// Supabase client initialization (optional browser direct client if user saves key in localStorage)
-let supabaseClient = null;
-const sbUrl = localStorage.getItem('meetingpilot_sb_url') || DEFAULT_SB_URL;
-const sbKey = localStorage.getItem('meetingpilot_sb_key') || '';
-
-if (window.supabase && sbUrl && sbKey) {
-  try {
-    supabaseClient = window.supabase.createClient(sbUrl, sbKey);
-    console.log('[MeetingPilot] Connected to Supabase Cloud directly in browser:', sbUrl);
-  } catch (err) {
-    console.error('Supabase init error:', err);
-  }
-}
+// Live backend tunnel verified on Serveo
+const DEFAULT_LIVE_BACKEND = 'https://e2fcf8d22f66bfd4-157-50-171-60.serveousercontent.com';
+const supabaseClient = null;
 
 function getApiBase() {
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
@@ -1116,19 +1099,21 @@ function getApiBase() {
   return DEFAULT_LIVE_BACKEND;
 }
 
-function updateBackendStatus(online, label, toolCount = 15) {
+function updateBackendStatus(online, label, toolCount = backendToolCount) {
   const el = $('backendText');
   const pill = $('backendPill');
   const pulse = $('backendPulse');
   if (!el || !pill) return;
+  document.body.classList.toggle('backend-offline', !online);
+  $('connectionNotice')?.classList.toggle('visible', !online);
   if (online) {
-    el.textContent = label || (supabaseClient ? 'Backend: Supabase Cloud (Live)' : `Backend: Online (${toolCount} tools)`);
+    el.textContent = label || `Backend: Online${toolCount ? ` (${toolCount} tools)` : ''}`;
     pill.style.borderColor = '#a7f3d0';
     pill.style.background = '#ecfdf5';
     pill.style.color = '#059669';
     if (pulse) pulse.style.background = '#059669';
   } else {
-    el.textContent = label || 'Backend: Demo Mode (Click to test)';
+    el.textContent = label || 'Backend: Offline';
     pill.style.borderColor = '#fde68a';
     pill.style.background = '#fffbeb';
     pill.style.color = '#b45309';
@@ -1141,26 +1126,24 @@ window.runLiveHandshakeTest = async () => {
   const start = performance.now();
   toast('🧪 Running live MCP handshake test...');
   try {
-    const healthRes = await fetch((base || '') + '/health');
+    const healthRes = await fetch((base || '') + '/health', { cache: 'no-store' });
+    if (!healthRes.ok) throw new Error(`Health check returned ${healthRes.status}`);
     const healthData = await healthRes.json();
+    if (!healthData.ok) throw new Error('Backend health check failed');
     const duration = Math.round(performance.now() - start);
 
     $('mcpLatencyText').textContent = duration + 'ms';
     $('mcpStatusText').textContent = '🟢 200 OK';
     $('mcpVerifiedTime').textContent = new Date().toLocaleTimeString();
     
-    // Test MCP tools/list
-    const mcpRes = await fetch((base || '') + '/mcp', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json, text/event-stream'
-      },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} })
-    });
-    
-    const count = 15;
+    const mcpRes = await fetch((base || '') + '/mcp', { cache: 'no-store' });
+    if (!mcpRes.ok) throw new Error(`MCP endpoint returned ${mcpRes.status}`);
+    const mcpInfo = await mcpRes.json();
+    const count = Array.isArray(mcpInfo.tools) ? mcpInfo.tools.length : 0;
+    if (!count) throw new Error('MCP endpoint did not report any tools');
+    backendToolCount = count;
     $('mcpToolsText').textContent = `${count} tools`;
+    $('mcpStatusText').textContent = `🟢 ${healthData.database}`;
     updateBackendStatus(true, `Backend: Online (${duration}ms)`, count);
     toast(`✅ Handshake verified: ${count} MCP tools active (${duration}ms)`);
   } catch (err) {
@@ -1173,30 +1156,8 @@ window.runLiveHandshakeTest = async () => {
 };
 
 window.configureBackend = () => {
-  $('cfg_sb_url').value = localStorage.getItem('meetingpilot_sb_url') || DEFAULT_SB_URL;
-  $('cfg_sb_key').value = localStorage.getItem('meetingpilot_sb_key') || '';
   $('cfg_api_url').value = localStorage.getItem('meetingpilot_api_base') || getApiBase();
   $('backendModal').classList.add('open');
-};
-
-$('cfgSaveSb').onclick = () => {
-  const url = $('cfg_sb_url').value.trim();
-  const key = $('cfg_sb_key').value.trim();
-  if (!url || !key) {
-    alert('Please enter both Supabase URL and Anon Key');
-    return;
-  }
-  localStorage.setItem('meetingpilot_sb_url', url.replace(/\/$/, ''));
-  localStorage.setItem('meetingpilot_sb_key', key);
-  toast('Supabase credentials saved');
-  location.reload();
-};
-
-$('cfgClearSb').onclick = () => {
-  localStorage.removeItem('meetingpilot_sb_url');
-  localStorage.removeItem('meetingpilot_sb_key');
-  toast('Disconnected from Supabase');
-  location.reload();
 };
 
 $('cfgSaveApi').onclick = () => {
@@ -1211,8 +1172,6 @@ $('cfgSaveApi').onclick = () => {
 };
 
 $('cfgResetAll').onclick = () => {
-  localStorage.removeItem('meetingpilot_sb_url');
-  localStorage.removeItem('meetingpilot_sb_key');
   localStorage.removeItem('meetingpilot_api_base');
   toast('Reset to default backend');
   location.reload();
@@ -1418,7 +1377,10 @@ window.applyQuickFilter = filterName => {
   activeQuickFilter = filterName;
   ['all', 'overdue', 'unassigned', 'open', 'done'].forEach(f => {
     const el = $('chip-' + f);
-    if (el) el.classList.toggle('active', f === filterName);
+    if (el) {
+      el.classList.toggle('active', f === filterName);
+      el.setAttribute('aria-pressed', String(f === filterName));
+    }
   });
   render();
 };
@@ -1494,9 +1456,9 @@ function render() {
     const unassigned = !a.owner || a.owner.trim() === '' || a.owner === 'Unassigned';
     return `
       <article class="task ${done ? 'task-done' : ''}">
-        <div class="task-check" title="Toggle completion" onclick="toggleActionDone('${a.id}')">
+        <button type="button" class="task-check" title="Toggle completion" aria-label="${done ? 'Reopen' : 'Complete'} ${esc(a.title)}" aria-pressed="${done}" onclick="toggleActionDone('${a.id}')">
           ${done ? '✓' : ''}
-        </div>
+        </button>
         <div>
           <h3>${esc(a.title)}</h3>
           ${a.description ? `<p>${esc(a.description)}</p>` : ''}
@@ -1635,6 +1597,8 @@ function setupSupabaseRealtime() {
 }
 
 async function load() {
+  if (loadInFlight) return;
+  loadInFlight = true;
   const ws = $('workspaceSelect').value;
 
   // 1. Direct Supabase Query (when configured)
@@ -1668,6 +1632,7 @@ async function load() {
       updateBackendStatus(true, 'Backend: Supabase Cloud (Live)');
       setupSupabaseRealtime();
       render();
+      loadInFlight = false;
       return;
     } catch (err) {
       console.warn('Supabase fetch failed:', err.message);
@@ -1691,15 +1656,18 @@ async function load() {
     isLocalFallback = false;
     updateBackendStatus(true);
     render();
+    loadInFlight = false;
   } catch (e) {
-    console.warn('Backend load failed, falling back to local demo state:', e.message);
-    updateBackendStatus(false);
+    console.warn('Backend load failed; showing demo data without save capability:', e.message);
+    isLocalFallback = true;
+    updateBackendStatus(false, 'Backend: Offline');
     if (!actions.length) {
       loadFallbackDemoData();
     } else {
       computeAnalytics();
     }
     render();
+    loadInFlight = false;
   }
 }
 
@@ -2020,29 +1988,26 @@ $('webhookForm').onsubmit = async e => {
   }
 };
 
-$('seedBtn').onclick = async () => {
-  try {
-    await api('/api/seed-sample?clear=true', { method: 'POST' });
-    toast('Sample company workspaces & actions loaded');
-    load();
-  } catch (e) {
-    toast(e.message);
-  }
-};
-
 $('workspaceSelect').onchange = load;
 $('search').oninput = render;
 $('statusFilter').onchange = render;
 $('categoryFilter').onchange = render;
 
 // View switcher
-window.switchView = viewId => {
-  document.querySelectorAll('.vtab-btn').forEach(b => b.classList.remove('active'));
+window.switchView = (viewId, button) => {
+  document.querySelectorAll('.vtab-btn').forEach(b => {
+    b.classList.remove('active');
+    b.setAttribute('aria-selected', 'false');
+  });
   ['board', 'decisions', 'analytics', 'audit', 'integrations'].forEach(v => {
     const el = $('view-' + v);
     if (el) el.style.display = 'none';
   });
-  event.target.classList.add('active');
+  const selected = button || document.querySelector(`.vtab-btn[onclick*="'${viewId}'"]`);
+  if (selected) {
+    selected.classList.add('active');
+    selected.setAttribute('aria-selected', 'true');
+  }
   const target = $('view-' + viewId);
   if (target) target.style.display = 'block';
 };
@@ -2087,7 +2052,8 @@ window.copyPrompt = elId => {
 window.switchTab = tabId => {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-  event.target.classList.add('active');
+  const selected = document.querySelector(`.tab-btn[onclick*="'${tabId}'"]`);
+  if (selected) selected.classList.add('active');
   $('tab-' + tabId).classList.add('active');
 };
 
@@ -2095,11 +2061,18 @@ window.switchTab = tabId => {
 updateMcpUrls();
 load();
 setTimeout(runLiveHandshakeTest, 1200);
+$('retryBackend').onclick = async () => {
+  await runLiveHandshakeTest();
+  await load();
+};
 
-// Auto-refresh every 10s if no modal open
+// Refresh less often and skip background tabs; reconnect immediately on return.
 setInterval(() => {
-  if (!document.querySelector('.modal.open')) load();
-}, 10000);
+  if (!document.hidden && !document.querySelector('.modal.open')) load();
+}, 30000);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) load();
+});
 </script>
 </body>
 </html>
