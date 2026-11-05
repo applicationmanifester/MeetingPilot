@@ -9,8 +9,8 @@
 ## ⚡ Live Deployments & Endpoints
 
 - **Live Web Dashboard:** [https://meetingpilot-app.web.app](https://meetingpilot-app.web.app) (Firebase Hosting)
-- **Live Verified MCP Endpoint:** `https://b617ed4c4494b3.lhr.life/mcp` (Streamable HTTP + SSE)
-- **Live Health Endpoint:** `https://b617ed4c4494b3.lhr.life/health`
+- **Live Verified MCP Endpoint:** `https://yourself-fascinating-detection-began.trycloudflare.com/mcp` (Cloudflare Tunnel · Streamable HTTP + SSE)
+- **Live Health Endpoint:** `https://yourself-fascinating-detection-began.trycloudflare.com/health`
 - **GitHub Repository:** [https://github.com/applicationmanifester/MeetingPilot](https://github.com/applicationmanifester/MeetingPilot)
 
 ---
@@ -55,7 +55,7 @@ MeetingPilot implements both **Streamable HTTP** (`POST /mcp`) and **Server-Sent
 1. Open Claude and go to **Customize / Settings → Connectors**.
 2. Select **Add custom connector**.
 3. Connector Name: `MeetingPilot`
-4. MCP Server URL: `https://b617ed4c4494b3.lhr.life/mcp`
+4. MCP Server URL: `https://yourself-fascinating-detection-began.trycloudflare.com/mcp`
 5. Click **Add** and connect it. Enable MeetingPilot tools in your chat!
 6. Prompt Claude:
    > *"Create a meeting in Product & Engineering called 'Weekly Architecture Sync' with attendees Bhargav, Priya, and Alex. Record this decision: 'Approved dual-engine SQLite and Supabase architecture'. Add an action for Priya to complete QA testing by Friday."*
@@ -63,7 +63,7 @@ MeetingPilot implements both **Streamable HTTP** (`POST /mcp`) and **Server-Sent
 ### Option B: Claude Code CLI
 Run this single command in terminal:
 ```bash
-claude mcp add --transport http meetingpilot https://b617ed4c4494b3.lhr.life/mcp
+claude mcp add --transport http meetingpilot https://yourself-fascinating-detection-began.trycloudflare.com/mcp
 ```
 
 ### Option C: Claude Desktop
@@ -73,7 +73,12 @@ Add to your `claude_desktop_config.json`:
   "mcpServers": {
     "meetingpilot": {
       "type": "http",
-      "url": "https://b617ed4c4494b3.lhr.life/mcp"
+      "url": "https://yourself-fascinating-detection-began.trycloudflare.com/mcp"
+    }
+  }
+}
+```
+      "url": "https://YOUR-RENDER-SERVICE.onrender.com/mcp"
     }
   }
 }
@@ -81,33 +86,36 @@ Add to your `claude_desktop_config.json`:
 
 ---
 
-## ⚡ Supabase Cloud Backend (PostgreSQL + Realtime)
+## ⚡ Supabase Cloud Backend (PostgreSQL)
 
 MeetingPilot supports **dual database engines**:
 1. **Local SQLite WAL mode** (built-in, zero setup required).
-2. **Supabase Cloud PostgreSQL** with real-time websocket synchronization.
+2. **Supabase Cloud PostgreSQL** for hosted persistence. The dashboard reads and writes through the Node backend so Claude and the UI share one database.
 
 ### 1. Set Up Supabase Database
 1. Create a project at [supabase.com](https://supabase.com).
 2. Go to the **SQL Editor** in your Supabase project dashboard.
 3. Paste and run the contents of [`supabase/schema.sql`](supabase/schema.sql). This will:
    - Create tables: `workspaces`, `meetings` (with `decisions` column), `actions`, `audit_logs`, `webhooks`
-   - Configure Row Level Security (RLS) policies
-   - Enable Supabase Realtime replication on `actions` and `meetings`
+   - Enable Row Level Security without public CRUD policies; the hosted Node service uses a server-only key
    - Insert initial seed workspaces and sample executive syncs
 
 ### 2. Configure Backend Credentials
 Add your Supabase project keys to `.env`:
 ```env
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your-supabase-service-role-or-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-server-only-secret-key
 ```
 
-### 3. Connect from the Live Web Dashboard
-On the live web app ([https://meetingpilot-app.web.app](https://meetingpilot-app.web.app)):
-- Click the **"⚙️ Config"** button in the top navigation.
-- Enter your Supabase Project URL and Anon Key.
-- Click **Save Supabase Connection**. The dashboard will instantly sync with Supabase and listen for real-time changes!
+Keep `SUPABASE_SERVICE_ROLE_KEY` in Render's environment settings. Do not enter it in the browser or commit it. The dashboard's **Config** control accepts only a backend URL; it never stores database credentials.
+
+### 3. Deploy the Node service
+1. Create a Render web service from this repository and use `meetingpilot/render.yaml`.
+2. Set `SUPABASE_SERVICE_ROLE_KEY` in the service's Environment settings.
+3. Deploy, then confirm `/health` reports `Supabase PostgreSQL`.
+4. Use the same Render service URL for the web dashboard and the `/mcp` connector.
+
+The current Supabase project still has its earlier permissive public policies. Apply the policy cleanup in `supabase/schema.sql` only after the hosted service has its server-only key configured, so the app does not lose database access during setup.
 
 ---
 
