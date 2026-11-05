@@ -317,6 +317,54 @@ function updateMeeting(meetingId, patch, actor = 'Human via Dashboard') {
   return updated;
 }
 
+function generateMeetingSummaryMarkdown(meetingId) {
+  const m = db.prepare('SELECT * FROM meetings WHERE id=?').get(meetingId);
+  if (!m) return null;
+  const actions = db.prepare('SELECT * FROM actions WHERE meeting_id=?').all(meetingId);
+  const attendeesList = m.attendees ? m.attendees : 'Team';
+  let md = `*${m.title}* (${m.meeting_date || 'Undated'})\n`;
+  md += `👥 *Attendees:* ${attendeesList}\n`;
+  if (m.notes) md += `📝 *Notes:* ${m.notes}\n`;
+  md += `\n*Action Items & Commitments (${actions.length}):*\n`;
+  if (actions.length === 0) {
+    md += `• _No action items logged._\n`;
+  } else {
+    for (const a of actions) {
+      const statusIcon = a.status === 'Done' ? '✅' : a.status === 'In progress' ? '⏳' : a.status === 'Blocked' ? '🚫' : '⭕';
+      const owner = a.owner ? `@${a.owner}` : 'unassigned';
+      const due = a.due_date ? `(Due ${a.due_date})` : '';
+      const amt = a.amount ? `[$${Number(a.amount).toLocaleString()}] ` : '';
+      md += `${statusIcon} *[${a.status}]* ${a.title} ${amt}— ${owner} ${due}\n`;
+    }
+  }
+  return md;
+}
+
+function rolloverMeetingActions(fromMeetingId, newTitle, newDate, actor = 'Human via Dashboard') {
+  const oldMeeting = db.prepare('SELECT * FROM meetings WHERE id=?').get(fromMeetingId);
+  if (!oldMeeting) return null;
+  const newMeetingId = id();
+  const title = newTitle || `${oldMeeting.title} (Follow-up)`;
+  const date = newDate || new Date().toISOString().split('T')[0];
+  const ts = now();
+
+  // Create new follow-up meeting
+  db.prepare(`INSERT INTO meetings (id, workspace_id, title, meeting_date, attendees, notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+    .run(newMeetingId, oldMeeting.workspace_id, title, date, oldMeeting.attendees, `Follow-up to "${oldMeeting.title}". Rolled over active commitments.`, ts);
+  
+  // Find incomplete actions in old meeting
+  const openActions = db.prepare(`SELECT id, title FROM actions WHERE meeting_id=? AND status != 'Done'`).all(fromMeetingId);
+  for (const a of openActions) {
+    db.prepare('UPDATE actions SET meeting_id=?, updated_at=? WHERE id=?').run(newMeetingId, ts, a.id);
+  }
+
+  logAudit(oldMeeting.workspace_id, 'meeting', newMeetingId, 'rollover', `Rolled over ${openActions.length} open commitment(s) from "${oldMeeting.title}" into "${title}"`, actor);
+  return {
+    newMeeting: meetingRow(db.prepare('SELECT * FROM meetings WHERE id=?').get(newMeetingId)),
+    rolledOverCount: openActions.length
+  };
+}
+
 function validateAction(b) {
   if (b.status !== undefined && !actionStatuses.includes(b.status)) return `status must be one of: ${actionStatuses.join(', ')}`;
   if (b.priority !== undefined && !priorities.includes(b.priority)) return `priority must be one of: ${priorities.join(', ')}`;
@@ -477,6 +525,24 @@ function buildMcpServer() {
     return { content: [{ type: 'text', text: JSON.stringify(rows, null, 2) }] };
   });
 
+  server.tool('get_meeting_summary_markdown', 'Generate a clean Slack/Markdown formatted summary of a meeting, attendees, and all action items.', {
+    meeting_id: z.string()
+  }, RO, async ({ meeting_id }) => {
+    const md = generateMeetingSummaryMarkdown(meeting_id);
+    if (!md) return { isError: true, content: [{ type: 'text', text: 'Meeting not found.' }] };
+    return { content: [{ type: 'text', text: md }] };
+  });
+
+  server.tool('rollover_meeting_actions', 'Roll over incomplete action items from an old meeting into a new follow-up meeting agenda.', {
+    from_meeting_id: z.string(),
+    new_title: z.string().optional(),
+    new_meeting_date: DATE.optional()
+  }, async ({ from_meeting_id, new_title, new_meeting_date }) => {
+    const result = rolloverMeetingActions(from_meeting_id, new_title, new_meeting_date, 'Claude via MCP');
+    if (!result) return { isError: true, content: [{ type: 'text', text: 'Meeting not found.' }] };
+    return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
+  });
+
   return server;
 }
 
@@ -538,6 +604,18 @@ app.delete('/api/meetings/:id', (req, res) => {
   res.json({ deleted: true });
 });
 
+app.get('/api/meetings/:id/summary-markdown', (req, res) => {
+  const md = generateMeetingSummaryMarkdown(req.params.id);
+  if (!md) return res.status(404).json({ error: 'Meeting not found' });
+  res.json({ markdown: md });
+});
+
+app.post('/api/meetings/:id/rollover', (req, res) => {
+  const result = rolloverMeetingActions(req.params.id, req.body?.new_title, req.body?.new_date, 'Human via Dashboard');
+  if (!result) return res.status(404).json({ error: 'Meeting not found' });
+  res.json(result);
+});
+
 // Actions
 app.get('/api/actions', (req, res) => {
   const ws = req.query.workspace_id;
@@ -570,6 +648,26 @@ app.delete('/api/actions/:id', (req, res) => {
   db.prepare('DELETE FROM actions WHERE id=?').run(req.params.id);
   logAudit(existing.workspace_id, 'action', req.params.id, 'deleted', `Deleted action "${existing.title}"`, 'Human via Dashboard');
   res.json({ deleted: true });
+});
+
+app.get('/api/actions/export-csv', (req, res) => {
+  const ws = req.query.workspace_id;
+  let sql = `SELECT a.id, a.title, a.status, a.priority, a.owner, a.due_date, a.amount, a.category, m.title AS meeting_title, w.name AS workspace_name
+    FROM actions a
+    LEFT JOIN meetings m ON m.id=a.meeting_id
+    LEFT JOIN workspaces w ON w.id=a.workspace_id`;
+  const params = [];
+  if (ws && ws !== 'all') { sql += ' WHERE a.workspace_id=?'; params.push(ws); }
+  sql += ' ORDER BY a.updated_at DESC';
+  const rows = db.prepare(sql).all(...params);
+
+  let csv = 'ID,Title,Status,Priority,Owner,Due Date,Amount,Category,Meeting,Department\r\n';
+  for (const r of rows) {
+    csv += `"${r.id}","${(r.title||'').replace(/"/g, '""')}","${r.status}","${r.priority}","${r.owner||''}","${r.due_date||''}","${r.amount||''}","${r.category||''}","${(r.meeting_title||'').replace(/"/g, '""')}","${r.workspace_name||''}"\r\n`;
+  }
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="meetingpilot-commitments.csv"');
+  res.send(csv);
 });
 
 // Executive Analytics

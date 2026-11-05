@@ -324,6 +324,18 @@ button{cursor:pointer}
 }
 .mtg h3{font-size:15px;margin:0 0 4px;font-weight:600}
 .mtg p{font-size:13px;color:var(--muted);margin:0 0 8px;white-space:pre-wrap;line-height:1.4}
+.eval-banner{
+  background:linear-gradient(90deg, #eef2ff, #f5f3ff);
+  border:1px solid #c7d2fe;
+  border-radius:12px;
+  padding:10px 16px;
+  margin-bottom:20px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  flex-wrap:wrap;
+}
 
 /* Audit Log List */
 .audit-entry{
@@ -519,6 +531,19 @@ button{cursor:pointer}
     </div>
   </header>
 
+  <!-- Volopay Evaluator Sandbox Banner -->
+  <div class="eval-banner" id="evalBanner">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <span class="pill" style="background:#4f46e5;color:white;font-weight:800;padding:5px 12px">🎯 Volopay Evaluator Sandbox</span>
+      <span style="font-size:13px;color:var(--ink-secondary);font-weight:600">Connect your Claude via MCP &rarr; Claude captures commitments &rarr; Edit with 1 click</span>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="secondary" onclick="$('seedBtn').click()" style="font-size:12px;padding:6px 12px">🔄 Reload Sample Data</button>
+      <button class="primary" onclick="$('copyMcp').click()" style="font-size:12px;padding:6px 12px">📋 Copy MCP Link</button>
+      <button class="btn-ghost" onclick="$('evalBanner').style.display='none'" style="padding:4px 8px;font-size:13px" title="Dismiss banner">✕</button>
+    </div>
+  </div>
+
   <!-- Hero Header -->
   <section class="hero">
     <div>
@@ -599,6 +624,7 @@ button{cursor:pointer}
                 <option>Operations</option>
                 <option>Compliance</option>
               </select>
+              <button class="btn-ghost" onclick="exportCsv()" style="font-size:12px;padding:6px 12px;font-weight:700" title="Download current action items as CSV">📥 Export CSV</button>
             </div>
           </div>
           <div id="taskList"></div>
@@ -942,6 +968,8 @@ function render() {
           </div>
         </div>
         <div class="actions">
+          <button class="iconbtn" onclick="copyMeetingSlack('${m.id}')" title="Copy formatted Slack/Markdown summary">📋 Slack</button>
+          <button class="iconbtn" onclick="rolloverMeeting('${m.id}')" title="Roll over open items into new follow-up meeting">🔄 Rollover</button>
           <button class="iconbtn" onclick="editMeeting('${m.id}')">Edit</button>
           <button class="iconbtn del" onclick="removeMeeting('${m.id}')">×</button>
         </div>
@@ -1022,6 +1050,37 @@ window.toggleActionDone = async id => {
   } catch (e) {
     toast(e.message);
   }
+};
+
+window.copyMeetingSlack = async meetingId => {
+  try {
+    const res = await api(`/api/meetings/${meetingId}/summary-markdown`);
+    await navigator.clipboard.writeText(res.markdown);
+    toast('Copied Slack-ready summary to clipboard!');
+  } catch (e) {
+    toast(e.message);
+  }
+};
+
+window.rolloverMeeting = async meetingId => {
+  const m = meetings.find(x => x.id === meetingId);
+  const title = prompt('Enter title for the follow-up meeting:', m ? `${m.title} (Follow-up)` : 'Follow-up Sync');
+  if (title === null) return;
+  try {
+    const res = await api(`/api/meetings/${meetingId}/rollover`, {
+      method: 'POST',
+      body: JSON.stringify({ new_title: title })
+    });
+    toast(`Rolled over ${res.rolledOverCount} open commitment(s) to new meeting!`);
+    load();
+  } catch (e) {
+    toast(e.message);
+  }
+};
+
+window.exportCsv = () => {
+  const ws = $('workspaceSelect').value;
+  window.open('/api/actions/export-csv?workspace_id=' + ws, '_blank');
 };
 
 function openModal(a) {
