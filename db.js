@@ -83,6 +83,12 @@ if (useSupabase) {
       created_at TEXT NOT NULL
     );
   `);
+
+  // Ensure decisions column on meetings
+  const cols = sqliteDb.prepare("PRAGMA table_info(meetings)").all();
+  if (!cols.some(c => c.name === 'decisions')) {
+    sqliteDb.exec("ALTER TABLE meetings ADD COLUMN decisions TEXT DEFAULT ''");
+  }
 }
 
 function normalizeMeeting(row) {
@@ -93,7 +99,13 @@ function normalizeMeeting(row) {
   } else if (typeof row.attendees === 'string' && row.attendees.trim()) {
     attendees = row.attendees.split(',').map(s => s.trim()).filter(Boolean);
   }
-  return { ...row, attendees };
+  let decisions = [];
+  if (Array.isArray(row.decisions)) {
+    decisions = row.decisions;
+  } else if (typeof row.decisions === 'string' && row.decisions.trim()) {
+    decisions = row.decisions.split('\n').map(s => s.trim()).filter(Boolean);
+  }
+  return { ...row, attendees, decisions };
 }
 
 // -----------------------------------------------------------------------------
@@ -155,6 +167,7 @@ export async function createMeeting(input, actor = 'Claude via MCP') {
   const meetingId = id();
   const ws = input.workspace_id || 'prod-eng';
   const attendeesList = Array.isArray(input.attendees) ? input.attendees : (typeof input.attendees === 'string' ? input.attendees.split(',').map(s=>s.trim()).filter(Boolean) : []);
+  const decisionsList = Array.isArray(input.decisions) ? input.decisions : (typeof input.decisions === 'string' ? input.decisions.split('\n').map(s=>s.trim()).filter(Boolean) : []);
   const entry = {
     id: meetingId,
     workspace_id: ws,
@@ -162,6 +175,7 @@ export async function createMeeting(input, actor = 'Claude via MCP') {
     meeting_date: input.meeting_date || null,
     attendees: attendeesList,
     notes: input.notes || '',
+    decisions: decisionsList,
     created_at: now()
   };
 
@@ -172,8 +186,8 @@ export async function createMeeting(input, actor = 'Claude via MCP') {
     return normalizeMeeting(data);
   }
 
-  sqliteDb.prepare(`INSERT INTO meetings (id,workspace_id,title,meeting_date,attendees,notes,created_at) VALUES (?,?,?,?,?,?,?)`)
-    .run(entry.id, entry.workspace_id, entry.title, entry.meeting_date, attendeesList.join(', '), entry.notes, entry.created_at);
+  sqliteDb.prepare(`INSERT INTO meetings (id,workspace_id,title,meeting_date,attendees,notes,decisions,created_at) VALUES (?,?,?,?,?,?,?,?)`)
+    .run(entry.id, entry.workspace_id, entry.title, entry.meeting_date, attendeesList.join(', '), entry.notes, decisionsList.join('\n'), entry.created_at);
   await logAudit(ws, 'meeting', meetingId, 'created', `Meeting "${input.title}" created`, actor);
   return normalizeMeeting(sqliteDb.prepare('SELECT * FROM meetings WHERE id=?').get(meetingId));
 }
@@ -190,6 +204,9 @@ export async function updateMeeting(meetingId, patch, actor = 'Human via Dashboa
   if (patch.attendees !== undefined) {
     updates.attendees = Array.isArray(patch.attendees) ? patch.attendees : String(patch.attendees).split(',').map(s => s.trim()).filter(Boolean);
   }
+  if (patch.decisions !== undefined) {
+    updates.decisions = Array.isArray(patch.decisions) ? patch.decisions : String(patch.decisions).split('\n').map(s => s.trim()).filter(Boolean);
+  }
 
   const nextWs = updates.workspace_id || existing.workspace_id;
 
@@ -201,13 +218,15 @@ export async function updateMeeting(meetingId, patch, actor = 'Human via Dashboa
   }
 
   const attendeesStr = updates.attendees ? updates.attendees.join(', ') : (existing.attendees || []).join(', ');
-  sqliteDb.prepare('UPDATE meetings SET workspace_id=?,title=?,meeting_date=?,attendees=?,notes=? WHERE id=?')
+  const decisionsStr = updates.decisions ? updates.decisions.join('\n') : (existing.decisions || []).join('\n');
+  sqliteDb.prepare('UPDATE meetings SET workspace_id=?,title=?,meeting_date=?,attendees=?,notes=?,decisions=? WHERE id=?')
     .run(
       updates.workspace_id ?? existing.workspace_id,
       updates.title ?? existing.title,
       updates.meeting_date !== undefined ? updates.meeting_date : existing.meeting_date,
       attendeesStr,
       updates.notes ?? existing.notes,
+      decisionsStr,
       meetingId
     );
   await logAudit(nextWs, 'meeting', meetingId, 'updated', `Meeting "${updates.title || existing.title}" updated`, actor);
@@ -530,17 +549,24 @@ export async function calculateAnalytics(workspaceId = null) {
   const inProgress = allActions.filter(a => a.status === 'In progress').length;
   const open = allActions.filter(a => a.status === 'Open').length;
   const blocked = allActions.filter(a => a.status === 'Blocked').length;
+  const unassigned = allActions.filter(a => !a.owner || a.owner.trim() === '' || a.owner === 'Unassigned').length;
 
   const today = new Date().toISOString().split('T')[0];
   const overdue = allActions.filter(a => a.due_date && a.due_date < today && a.status !== 'Done');
 
-  const sayDoRatio = total > 0 ? Math.round((done / total) * 100) : 100;
+  const withDueDate = allActions.filter(a => a.due_date);
+  const onTime = allActions.filter(a => a.status === 'Done' && (!a.due_date || a.due_date >= today)).length;
+  const onTimeRate = withDueDate.length > 0 ? Math.round((onTime / withDueDate.length) * 100) : null;
+
+  // Say-Do Ratio (Completion Rate): NULL when total is 0! (Never claim 100% with 0 items)
+  const sayDoRatio = total > 0 ? Math.round((done / total) * 100) : null;
+
   const totalFinancialAmount = allActions.reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
   const pendingFinancialAmount = allActions.filter(a => a.status !== 'Done').reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
 
   const byOwner = {};
   for (const a of allActions) {
-    const o = a.owner || 'Unassigned';
+    const o = a.owner && a.owner.trim() ? a.owner.trim() : 'Unassigned';
     if (!byOwner[o]) byOwner[o] = { total: 0, done: 0, overdue: 0 };
     byOwner[o].total++;
     if (a.status === 'Done') byOwner[o].done++;
@@ -548,13 +574,17 @@ export async function calculateAnalytics(workspaceId = null) {
   }
 
   return {
+    reportingPeriod: 'Q4 2026 (Live Workspace)',
     totalMeetings: allMeetings.length,
     totalActions: total,
-    sayDoRatio,
+    sayDoRatio, // null if total === 0
+    completionRate: sayDoRatio,
+    onTimeRate,
     done,
     inProgress,
     open,
     blocked,
+    unassigned,
     overdueCount: overdue.length,
     totalFinancialAmount,
     pendingFinancialAmount,
@@ -733,3 +763,4 @@ export async function seedDemoData(clearExisting = false) {
 export function isUsingSupabase() {
   return useSupabase;
 }
+

@@ -129,3 +129,4 @@ VALUES
   ('aud-seed-1', 'prod-eng', 'create_action_item', 'Claude via MCP', 'Created action "Finalize MCP Streamable HTTP & SSE transport endpoints"', NOW()),
   ('aud-seed-2', 'exec', 'toggle_status', 'Human via Dashboard', 'Marked "Record 5-minute Volopay challenge walkthrough video" as Done', NOW())
 ON CONFLICT (id) DO NOTHING;
+

@@ -1,51 +1,69 @@
 # MeetingPilot
 
 > **Turn meetings into momentum.**  
-> A lightweight action-management SaaS driven by Claude via the Model Context Protocol (MCP).  
-> **100% No-AI Guarantee:** Zero AI models, zero AI SDKs, and zero AI API keys inside the application. Claude does the thinking; MeetingPilot does the persistent storage, status tracking, and human-in-the-loop editing.
+> Enterprise meeting accountability and action-management SaaS driven by Claude via the Model Context Protocol (MCP).  
+> **100% No-AI Guarantee:** Zero AI models, zero AI SDKs, and zero AI API keys inside the application. Claude does the thinking; MeetingPilot provides the persistent storage, Say-Do ratio velocity tracking, decision registers, and human-in-the-loop control.
+
+---
+
+## ⚡ Live Deployments & Endpoints
+
+- **Live Web Dashboard:** [https://meetingpilot-app.web.app](https://meetingpilot-app.web.app) (Firebase Hosting)
+- **Live Verified MCP Endpoint:** `https://b617ed4c4494b3.lhr.life/mcp` (Streamable HTTP + SSE)
+- **Live Health Endpoint:** `https://b617ed4c4494b3.lhr.life/health`
+- **GitHub Repository:** [https://github.com/applicationmanifester/MeetingPilot](https://github.com/applicationmanifester/MeetingPilot)
 
 ---
 
 ## ⚡ What MeetingPilot Does
 
-1. **Creates Real Records from Claude**: A request typed in Claude instantly creates meetings and structured action items in MeetingPilot via MCP.
+1. **Captures Real Records from Claude**: A request typed in Claude instantly creates meetings, records agreed key decisions, and creates structured action items in MeetingPilot via MCP.
 2. **Lets Humans Edit Everything**: Open the live web dashboard to edit titles, reassign owners, push due dates, toggle completion with one click, or delete records.
-3. **Keeps the Result Live**: Real-time synchronization across Claude and the web dashboard.
-4. **Strictly Zero AI Inside**: No Anthropic, OpenAI, or other AI keys are in the codebase. All intelligence is powered by the customer's own Claude subscription over standard MCP.
+3. **Dedicated Decision Register**: Separates consensus decisions agreed by the team from operational task tickets, ensuring the "why" is never lost.
+4. **Accurate Say-Do Ratio Analytics**: Measures organizational follow-through ($Completed \div Total$). Displays `—` when no commitments exist (never claiming a misleading 100% on zero actions) and highlights overdue risks.
+5. **Strictly Zero AI Inside**: No Anthropic, OpenAI, or other AI keys are in the codebase. All intelligence is powered by the customer's own Claude subscription over standard MCP.
 
 ---
 
-## 🛠️ MCP Tools Exposed
+## 🛠️ Complete MCP Tool Catalogue (15 Tools)
 
 MeetingPilot implements both **Streamable HTTP** (`POST /mcp`) and **Server-Sent Events** (`GET /sse`):
 
-| Tool | Purpose | Read-Only? |
+| Tool | Purpose | Annotations / Read-Only |
 |---|---|:---:|
-| `create_meeting` | Save meeting title, date, attendees, and notes | No |
-| `add_action_item` | Create a trackable action item (owner, due date, priority, status) | No |
-| `list_meetings` | Retrieve recent meetings, newest first | Yes |
-| `list_action_items` | Filter action items by status, owner, or meeting ID | Yes |
-| `update_action_item` | Update title, owner, due date, priority, or status | No |
-| `delete_action_item` | Permanently remove an action item | No |
-| `update_meeting` | Edit meeting title, notes, date, or attendees | No |
-| `delete_meeting` | Delete meeting (preserves unlinked action items) | No |
-| `get_dashboard_summary`| Returns aggregated metrics (totals, status breakdown, overdue items)| Yes |
+| `create_meeting` | Save meeting title, date, attendees, notes, and agreed decisions | Write |
+| `record_meeting_decision` | Record an agreed key decision during a meeting, separate from action items | Write |
+| `add_action_item` | Create a trackable commitment (owner, due date, priority, status, category, amount) | Write |
+| `list_meetings` | Retrieve recent meetings, newest first (optional filter by workspace) | Read-Only |
+| `list_action_items` | Filter action items by status, owner, category, meeting ID, or workspace | Read-Only |
+| `update_action_item` | Update title, owner, due date, priority, status, or amount (attributed in audit log) | Write |
+| `delete_action_item` | Permanently remove an action item | Write |
+| `update_meeting` | Edit meeting title, notes, date, attendees, or decisions | Write |
+| `delete_meeting` | Delete meeting record (unlinks action items safely) | Write |
+| `get_dashboard_summary`| Returns aggregated totals, status breakdown, and overdue counts | Read-Only |
+| `get_team_analytics` | Executive metrics: Say-Do Ratio (%), overdue counts, unassigned counts, and owner breakdown | Read-Only |
+| `list_audit_log` | Verifiable audit log attributing changes to Claude via MCP vs. human teammates | Read-Only |
+| `list_workspaces` | List company departments / workspaces | Read-Only |
+| `get_meeting_summary_markdown` | Generate a clean Slack/Markdown formatted summary of a meeting and all actions | Read-Only |
+| `rollover_meeting_actions` | Roll over incomplete action items from an old meeting into a new follow-up agenda | Write |
 
 ---
 
 ## 🚀 Connecting to Claude
 
-### Option A: claude.ai (Web Connectors)
-1. In Claude, navigate to **Settings → Connectors** (or **Add Remote MCP Server**).
-2. Enter your live URL: `https://YOUR-APP-DOMAIN/mcp`.
-3. Leave OAuth fields blank (MeetingPilot runs in authless mode for public evaluators).
-4. Prompt Claude:
-   > *"Create a meeting called 'Weekly Product Sync' with attendees Bhargav, Priya, and Alex. Add an action for Priya to send the release plan by Friday (High priority), and an action for Alex to confirm QA sign-off (Urgent priority)."*
+### Option A: claude.ai (Official Custom Connector)
+1. Open Claude and go to **Customize / Settings → Connectors**.
+2. Select **Add custom connector**.
+3. Connector Name: `MeetingPilot`
+4. MCP Server URL: `https://b617ed4c4494b3.lhr.life/mcp`
+5. Click **Add** and connect it. Enable MeetingPilot tools in your chat!
+6. Prompt Claude:
+   > *"Create a meeting in Product & Engineering called 'Weekly Architecture Sync' with attendees Bhargav, Priya, and Alex. Record this decision: 'Approved dual-engine SQLite and Supabase architecture'. Add an action for Priya to complete QA testing by Friday."*
 
 ### Option B: Claude Code CLI
-Run one command in your terminal:
+Run this single command in terminal:
 ```bash
-claude mcp add --transport http meetingpilot https://YOUR-APP-DOMAIN/mcp
+claude mcp add --transport http meetingpilot https://b617ed4c4494b3.lhr.life/mcp
 ```
 
 ### Option C: Claude Desktop
@@ -55,7 +73,7 @@ Add to your `claude_desktop_config.json`:
   "mcpServers": {
     "meetingpilot": {
       "type": "http",
-      "url": "https://YOUR-APP-DOMAIN/mcp"
+      "url": "https://b617ed4c4494b3.lhr.life/mcp"
     }
   }
 }
@@ -65,14 +83,16 @@ Add to your `claude_desktop_config.json`:
 
 ## ⚡ Supabase Cloud Backend (PostgreSQL + Realtime)
 
-MeetingPilot supports **Supabase** as its cloud database backend. When configured, both the Claude MCP server and the Firebase-hosted dashboard interact with Supabase PostgreSQL with live Realtime subscription updates!
+MeetingPilot supports **dual database engines**:
+1. **Local SQLite WAL mode** (built-in, zero setup required).
+2. **Supabase Cloud PostgreSQL** with real-time websocket synchronization.
 
 ### 1. Set Up Supabase Database
 1. Create a project at [supabase.com](https://supabase.com).
 2. Go to the **SQL Editor** in your Supabase project dashboard.
-3. Paste and run the contents of [`supabase/schema.sql`](file:///supabase/schema.sql). This will:
-   - Create tables: `workspaces`, `meetings`, `actions`, `audit_logs`, `webhooks`
-   - Configure Row Level Security (RLS) open policies
+3. Paste and run the contents of [`supabase/schema.sql`](supabase/schema.sql). This will:
+   - Create tables: `workspaces`, `meetings` (with `decisions` column), `actions`, `audit_logs`, `webhooks`
+   - Configure Row Level Security (RLS) policies
    - Enable Supabase Realtime replication on `actions` and `meetings`
    - Insert initial seed workspaces and sample executive syncs
 
@@ -85,7 +105,7 @@ SUPABASE_KEY=your-supabase-service-role-or-anon-key
 
 ### 3. Connect from the Live Web Dashboard
 On the live web app ([https://meetingpilot-app.web.app](https://meetingpilot-app.web.app)):
-- Click the **"Backend"** pill in the top header.
+- Click the **"⚙️ Config"** button in the top navigation.
 - Enter your Supabase Project URL and Anon Key.
 - Click **Save Supabase Connection**. The dashboard will instantly sync with Supabase and listen for real-time changes!
 
@@ -101,36 +121,14 @@ npm install
 npm start
 ```
 
-- Web Dashboard: `http://localhost:3000`
-- Health Check: `http://localhost:3000/health`
-- MCP Streamable HTTP Endpoint: `http://localhost:3000/mcp`
-- MCP SSE Endpoint: `http://localhost:3000/sse`
+- Web Dashboard: `http://localhost:3001`
+- Health Check: `http://localhost:3001/health`
+- MCP Streamable HTTP Endpoint: `http://localhost:3001/mcp`
+- MCP SSE Endpoint: `http://localhost:3001/sse`
 
 ---
 
-## 🌐 Deploying to the Internet (Render)
-
-MeetingPilot uses SQLite with WAL mode.
-
-1. Push this directory to your GitHub repository:
-   ```bash
-   git remote add origin https://github.com/applicationmanifester/MeetingPilot.git
-   git push -u origin main
-   ```
-2. In **Render** (render.com):
-   - Click **New → Web Service**.
-   - Connect your `meetingpilot` repository.
-   - **Environment:** Node
-   - **Build Command:** `npm install`
-   - **Start Command:** `npm start`
-   - **Environment Variables:**
-     - `NODE_VERSION` = `20`
-     - *(Optional)* `DATABASE_PATH` = `/var/data/meetingpilot.db` (if using Render Persistent Disk)
-3. Hit **Deploy**. Your app is live with HTTPS within 2 minutes!
-
----
-
-## 📊 Business Model & Economics
+## 📊 Business Model & Unit Economics
 
 - **Target Customers:** Small software teams, digital agencies, consultancies, and founder-led startups (5–25 people) who need dependable follow-through without heavyweight project-management suites.
 - **Pricing:**

@@ -61,15 +61,28 @@ function buildMcpServer() {
     }
   );
 
-  server.tool('create_meeting', 'Save a meeting record in MeetingPilot. Optionally specify workspace_id (e.g. prod-eng, finance-ops, exec).', {
+  server.tool('create_meeting', 'Save a meeting record in MeetingPilot. Optionally specify workspace_id, notes, and agreed decisions.', {
     title: z.string().min(1),
     meeting_date: DATE.optional(),
     attendees: z.array(z.string()).optional(),
     notes: z.string().optional(),
+    decisions: z.array(z.string()).optional(),
     workspace_id: z.string().optional()
   }, async input => {
     const meeting = await createMeeting(input, 'Claude via MCP');
     return { content: [{ type: 'text', text: JSON.stringify(meeting, null, 2) }] };
+  });
+
+  server.tool('record_meeting_decision', 'Record an agreed key decision during a meeting, separate from action items.', {
+    meeting_id: z.string(),
+    decision: z.string().min(1).describe('Decision agreed by the team')
+  }, async ({ meeting_id, decision }) => {
+    const m = await getMeetingById(meeting_id);
+    if (!m) return { isError: true, content: [{ type: 'text', text: 'Meeting not found.' }] };
+    const decisions = Array.isArray(m.decisions) ? m.decisions : [];
+    decisions.push(decision);
+    const updated = await updateMeeting(meeting_id, { decisions }, 'Claude via MCP');
+    return { content: [{ type: 'text', text: JSON.stringify(updated, null, 2) }] };
   });
 
   server.tool('add_action_item', 'Create a follow-up action item. Supports owner, due_date, priority, optional amount ($ spend approval), and category.', {

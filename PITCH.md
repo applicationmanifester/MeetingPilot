@@ -3,7 +3,7 @@
 > **Pitch Video Rules Checklist:**
 > - Length: Under 5 minutes (target 4:20 - 4:45)
 > - Must cover: 1) Who you are, 2) Your best work, 3) Why this business will win, 4) Live demo, 5) The economics.
-> - Must show: Real deployed app, real Claude MCP connector, and human editing in the UI.
+> - Must show: Real deployed app (`https://meetingpilot-app.web.app`), real Claude MCP connector (`https://b617ed4c4494b3.lhr.life/mcp`), Decision Register, Say-Do ratio tracking, and human editing in the UI.
 
 ---
 
@@ -21,39 +21,41 @@
 ---
 
 ### Part 2: The Problem & The Business (0:35 – 1:15)
-**Visual:** Show slide or MeetingPilot landing screen.
+**Visual:** Show slide or MeetingPilot landing screen at `https://meetingpilot-app.web.app`.
 
 > "Meetings are only valuable if decisions turn into execution. Today, teams spend hours in syncs, but after the call ends, nobody wants to spend 20 minutes manually filing Jira tickets or updating complex Asana boards. 
 > 
 > That's why I built **MeetingPilot**. 
 > 
-> MeetingPilot is a dedicated meeting action-management workspace built on top of the Model Context Protocol (MCP). 
+> MeetingPilot is an enterprise meeting accountability SaaS built on top of the Model Context Protocol (MCP). 
 > 
-> Crucially, **there is zero AI inside MeetingPilot**. There are no OpenAI or Anthropic API keys in the codebase, no background token costs, and no hallucination risk in our database. Claude does 100% of the thinking, summarization, and intent extraction, while MeetingPilot handles what software does best: ultra-fast persistence, search, status tracking, and a live web dashboard where humans can review and edit every single commitment."
+> Crucially, **there is zero AI inside MeetingPilot**. There are no OpenAI or Anthropic API keys in the codebase, no background token costs, and no hallucination risk in our database. Claude does 100% of the thinking, summarization, and intent extraction, while MeetingPilot handles what software does best: ultra-fast persistence, search, status tracking, Decision Registers, Say-Do ratio velocity tracking, and a live web dashboard where humans retain full control."
 
 ---
 
 ### Part 3: Live Interactive Demo (1:15 – 3:00)
 **Visual:** Screen recording showing MeetingPilot dashboard on the left and Claude on the right (split screen).
 
-> **Step 1: The Workspace (1:15 – 1:35)**  
-> *"Here is the live MeetingPilot dashboard running on the web. It's clean, distraction-free, and real-time. We can see our meetings, action items, assignees, priorities, and deadlines."*
+> **Step 1: The Live Workspace & Connection Handshake (1:15 – 1:35)**  
+> *"Here is the live MeetingPilot dashboard running on Firebase at `meetingpilot-app.web.app`. Notice our live connection status: `Backend: Online (15 tools)`. I can click '🧪 Test Handshake' and instantly verify round-trip latency to our live MCP endpoint."*
 > 
 > **Step 2: Driving from Claude via MCP (1:35 – 2:15)**  
-> *"Now let's switch to Claude. We've connected MeetingPilot via Claude's remote MCP connector. I will give Claude raw meeting conversational notes:*
+> *"Now let's switch to Claude. We've connected MeetingPilot via Claude's official custom connector settings. I will give Claude raw conversational notes from an architecture sync:*
 > 
 > *[Type or paste into Claude]*:  
-> **'Create a meeting called Q4 Roadmap & Launch Sync with attendees Bhargav, Priya, and Alex. Add an action for Priya to send the release plan by Friday (High priority), and an action for Alex to confirm QA staging sign-off by Monday (Urgent priority).'**
+> **'Create a meeting in Product & Engineering called Weekly Architecture Sync with attendees Bhargav, Priya, and Alex. Record this key decision: Approved dual-engine SQLite and Supabase architecture. Then add an action for Priya to complete QA testing by Friday (Urgent priority), and an action for Alex to publish release documentation by Monday.'**
 > 
-> *"Notice Claude analyzing the prompt, choosing MeetingPilot's `create_meeting` and `add_action_item` tools, and executing the calls directly."*
+> *"Notice Claude analyzing the prompt, choosing MeetingPilot's `create_meeting`, `record_meeting_decision`, and `add_action_item` tools, and executing the calls directly."*
 > 
 > **Step 3: Real-Time Sync & Human In The Loop (2:15 – 2:45)**  
-> *"Now back in MeetingPilot—without touching a database—the meeting and the two action items are immediately live!*
+> *"Now back in MeetingPilot—without manual re-entry—the meeting, the consensus decision in our Decision Register, and both action items are immediately live!*
 > 
-> *And because software must serve humans, we can edit everything. Let's say Priya asks for extra time: I can click **Edit** right here, push her due date to next Wednesday, or reassign it. Or with one click on the checkmark, mark Alex's QA sign-off as **Completed**.*
+> *Notice our Say-Do Ratio metric: it accurately calculates our delivery velocity, and our overdue alert notifies us if any deadline is breached. 
+> 
+> And because software must serve humans, we can edit everything. Let's say Priya asks for extra time: I can click **Edit** right here, adjust her due date, or reassign it. Or with one click on the checkmark, mark Alex's release documentation as **Completed**.*
 > 
 > **Step 4: Claude Sees The Changes (2:45 – 3:00)**  
-> *"Now I ask Claude: 'What is the current status of our action items?' Claude calls `list_action_items`, reads the updated database in real-time, and tells me Alex's item is already Done and Priya's date is rescheduled. Claude is the brain; MeetingPilot is the single source of truth."*
+> *"Now I ask Claude: 'What is our current Say-Do ratio and action status?' Claude calls `get_team_analytics`, reads the updated database in real-time, and tells me Alex's item is already Done and our completion rate updated. Claude is the brain; MeetingPilot is the single source of truth."*
 
 ---
 
@@ -63,7 +65,7 @@
 > "Why will MeetingPilot win against bloated project management tools?
 > 
 > 1. **Zero Behavioral Friction:** Users don't need to learn a new tool or fill out 10 form fields. They talk naturally to Claude where they are already working.
-> 2. **Radical Simplicity:** One thing that works exceptionally well beats 50 features that are cumbersome. We focus 100% on meeting follow-through.
+> 2. **Meeting Decision Register:** We separate high-level agreed decisions from operational task tickets, so organizational rationale is never lost.
 > 3. **The 'Bring Your Own AI' Architecture:** Because customers use their own Claude subscriptions, they keep full ownership of their data context and prompt privacy, while we avoid the catastrophic unit economics of running server-side LLMs."
 
 ---
@@ -75,7 +77,7 @@
 > 
 > **Revenue Model:** Subscription SaaS:
 > - **Free Tier:** 1 workspace, up to 3 meetings per month.
-> - **Pro (Solo / Founder):** ₹499/month ($6/mo).
+> - **Solo:** ₹499/month ($6/mo).
 > - **Team (up to 5 seats):** ₹1,499/month ($18/mo).
 > - **Business (up to 20 seats):** ₹3,999/month ($48/mo).
 > 
@@ -100,14 +102,14 @@
 
 > "MeetingPilot demonstrates the true promise of the Model Context Protocol: letting frontier AI models provide the intelligence, while lightweight, focused web applications provide dependable, editable execution.
 > 
-> You can try MeetingPilot right now at our live link below, connect it to your Claude in 30 seconds, and see it in action.
+> You can try MeetingPilot right now at `meetingpilot-app.web.app`, connect it to your Claude in 30 seconds via our live MCP endpoint, and see it in action.
 > 
 > Thank you!"
 
 ---
 
 ## 📋 Quick Cheat-Sheet for Recording
-- [ ] Have the live deployed dashboard open in one browser window.
+- [ ] Have the live deployed dashboard open: `https://meetingpilot-app.web.app`.
 - [ ] Have Claude (claude.ai or Claude Desktop) open in an adjacent window.
-- [ ] Test the connection once before recording (run a quick test prompt, then click "Seed sample" or clear).
+- [ ] Test the connection once before recording (run a quick handshake test, then click "Seed demo data").
 - [ ] Keep a stopwatch handy on your phone to stay right at the ~4:30 mark.
