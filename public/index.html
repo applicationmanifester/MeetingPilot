@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>MeetingPilot — Enterprise Meeting Action Management</title>
 <meta name="description" content="Enterprise action-management SaaS powered by Claude via MCP. Zero AI inside.">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --bg:#f8fafc;
@@ -865,12 +866,66 @@ button{cursor:pointer}
   </div>
 </div>
 
+<!-- Backend Configuration Modal -->
+<div class="modal" id="backendModal">
+  <div class="dialog">
+    <h2>⚙️ Backend & Supabase Configuration</h2>
+    <p style="font-size:13px;color:var(--muted);margin-top:-10px;margin-bottom:16px">Connect MeetingPilot to Supabase Cloud for persistent PostgreSQL storage & realtime sync, or configure a custom Node MCP backend.</p>
+    
+    <div style="background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:16px">
+      <div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#1e293b">⚡ Option 1: Supabase Cloud Database</div>
+      <div class="field" style="margin-bottom:10px">
+        <label>Supabase Project URL</label>
+        <input id="cfg_sb_url" placeholder="https://your-project.supabase.co">
+      </div>
+      <div class="field">
+        <label>Supabase Anon Key</label>
+        <input id="cfg_sb_key" type="password" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+      </div>
+      <div style="margin-top:10px;display:flex;gap:8px">
+        <button class="primary" type="button" id="cfgSaveSb" style="font-size:12px;padding:6px 14px">Save Supabase Connection</button>
+        <button class="btn-ghost" type="button" id="cfgClearSb" style="font-size:12px;padding:6px 14px">Disconnect Supabase</button>
+      </div>
+    </div>
+
+    <div style="background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:14px">
+      <div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#1e293b">🌐 Option 2: Custom Node MCP API Server</div>
+      <div class="field">
+        <label>API Endpoint / Render URL</label>
+        <input id="cfg_api_url" placeholder="http://localhost:3001 or https://meetingpilot.onrender.com">
+      </div>
+      <div style="margin-top:10px;display:flex;gap:8px">
+        <button class="secondary" type="button" id="cfgSaveApi" style="font-size:12px;padding:6px 14px">Save Custom API URL</button>
+        <button class="btn-ghost" type="button" id="cfgResetAll" style="font-size:12px;padding:6px 14px">Reset to Defaults</button>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button type="button" class="btn-ghost" onclick="$('backendModal').classList.remove('open')">Close</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
 const $ = id => document.getElementById(id);
 let actions = [], meetings = [], auditLogs = [], analytics = {}, webhooks = [];
 let isLocalFallback = false;
+
+// Supabase client initialization (if configured by user)
+let supabaseClient = null;
+const sbUrl = localStorage.getItem('meetingpilot_sb_url') || '';
+const sbKey = localStorage.getItem('meetingpilot_sb_key') || '';
+
+if (window.supabase && sbUrl && sbKey) {
+  try {
+    supabaseClient = window.supabase.createClient(sbUrl, sbKey);
+    console.log('[MeetingPilot] Connected to Supabase Cloud:', sbUrl);
+  } catch (err) {
+    console.error('Supabase init error:', err);
+  }
+}
 
 function getApiBase() {
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
@@ -887,7 +942,7 @@ function updateBackendStatus(online, label) {
   const pulse = $('backendPulse');
   if (!el || !pill) return;
   if (online) {
-    el.textContent = label || 'Backend: Online';
+    el.textContent = label || (supabaseClient ? 'Backend: Supabase Cloud' : 'Backend: Online');
     pill.style.borderColor = '#a7f3d0';
     pill.style.background = '#ecfdf5';
     pill.style.color = '#059669';
@@ -902,16 +957,49 @@ function updateBackendStatus(online, label) {
 }
 
 window.configureBackend = () => {
-  const current = localStorage.getItem('meetingpilot_api_base') || getApiBase();
-  const val = prompt('Configure MeetingPilot Backend API URL:\n(Enter your live Render URL or tunnel, e.g., https://meetingpilot.onrender.com):', current);
-  if (val !== null) {
-    if (val.trim()) {
-      localStorage.setItem('meetingpilot_api_base', val.trim().replace(/\/$/, ''));
-    } else {
-      localStorage.removeItem('meetingpilot_api_base');
-    }
-    location.reload();
+  $('cfg_sb_url').value = localStorage.getItem('meetingpilot_sb_url') || '';
+  $('cfg_sb_key').value = localStorage.getItem('meetingpilot_sb_key') || '';
+  $('cfg_api_url').value = localStorage.getItem('meetingpilot_api_base') || getApiBase();
+  $('backendModal').classList.add('open');
+};
+
+$('cfgSaveSb').onclick = () => {
+  const url = $('cfg_sb_url').value.trim();
+  const key = $('cfg_sb_key').value.trim();
+  if (!url || !key) {
+    alert('Please enter both Supabase URL and Anon Key');
+    return;
   }
+  localStorage.setItem('meetingpilot_sb_url', url.replace(/\/$/, ''));
+  localStorage.setItem('meetingpilot_sb_key', key);
+  toast('Supabase credentials saved');
+  location.reload();
+};
+
+$('cfgClearSb').onclick = () => {
+  localStorage.removeItem('meetingpilot_sb_url');
+  localStorage.removeItem('meetingpilot_sb_key');
+  toast('Disconnected from Supabase');
+  location.reload();
+};
+
+$('cfgSaveApi').onclick = () => {
+  const url = $('cfg_api_url').value.trim();
+  if (url) {
+    localStorage.setItem('meetingpilot_api_base', url.replace(/\/$/, ''));
+  } else {
+    localStorage.removeItem('meetingpilot_api_base');
+  }
+  toast('Custom API URL saved');
+  location.reload();
+};
+
+$('cfgResetAll').onclick = () => {
+  localStorage.removeItem('meetingpilot_sb_url');
+  localStorage.removeItem('meetingpilot_sb_key');
+  localStorage.removeItem('meetingpilot_api_base');
+  toast('Reset to default backend');
+  location.reload();
 };
 
 const api = async (url, opts = {}) => {
@@ -1188,9 +1276,65 @@ function render() {
   `).join('') : '<p style="color:var(--muted);font-size:13px">No webhooks registered yet.</p>';
 }
 
+let realtimeChannel = null;
+function setupSupabaseRealtime() {
+  if (!supabaseClient || realtimeChannel) return;
+  realtimeChannel = supabaseClient.channel('meetingpilot-realtime')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'actions' }, payload => {
+      console.log('Supabase realtime action event:', payload);
+      load();
+      toast('⚡ Realtime: Action items synced');
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'meetings' }, payload => {
+      console.log('Supabase realtime meeting event:', payload);
+      load();
+      toast('⚡ Realtime: Meetings synced');
+    })
+    .subscribe();
+}
+
 async function load() {
+  const ws = $('workspaceSelect').value;
+
+  // 1. Direct Supabase Query (when configured)
+  if (supabaseClient) {
+    try {
+      let actQ = supabaseClient.from('actions').select('*, workspaces:workspace_id(name), meetings:meeting_id(title)').order('created_at', { ascending: false });
+      if (ws && ws !== 'all') actQ = actQ.eq('workspace_id', ws);
+      
+      let mtgQ = supabaseClient.from('meetings').select('*').order('created_at', { ascending: false });
+      if (ws && ws !== 'all') mtgQ = mtgQ.eq('workspace_id', ws);
+
+      let audQ = supabaseClient.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(50);
+      if (ws && ws !== 'all') audQ = audQ.eq('workspace_id', ws);
+
+      const [actRes, mtgRes, audRes] = await Promise.all([actQ, mtgQ, audQ]);
+      if (actRes.error) throw actRes.error;
+      if (mtgRes.error) throw mtgRes.error;
+
+      actions = (actRes.data || []).map(r => ({
+        ...r,
+        workspace_name: r.workspaces?.name || r.workspace_id,
+        meeting_title: r.meetings?.title || null
+      }));
+      meetings = (mtgRes.data || []).map(r => ({
+        ...r,
+        attendees: Array.isArray(r.attendees) ? r.attendees : (typeof r.attendees === 'string' ? r.attendees.split(',').map(s=>s.trim()).filter(Boolean) : [])
+      }));
+      auditLogs = audRes.data || [];
+      computeAnalytics();
+      updateBackendStatus(true, 'Backend: Supabase Cloud (Live)');
+      setupSupabaseRealtime();
+      render();
+      return;
+    } catch (err) {
+      console.warn('Supabase fetch failed:', err.message);
+      toast('Supabase error: ' + err.message);
+    }
+  }
+
+  // 2. Node REST API Query (Default local/Render server)
   try {
-    const ws = $('workspaceSelect').value;
     const [act, mtg, aud, an, wh] = await Promise.all([
       api('/api/actions?workspace_id=' + ws),
       api('/api/meetings?workspace_id=' + ws),
@@ -1222,6 +1366,28 @@ window.toggleActionDone = async id => {
   const item = actions.find(a => a.id === id);
   if (!item) return;
   const nextStatus = item.status === 'Done' ? 'Open' : 'Done';
+
+  if (supabaseClient) {
+    try {
+      const now = new Date().toISOString();
+      const { error } = await supabaseClient.from('actions').update({ status: nextStatus, updated_at: now }).eq('id', id);
+      if (error) throw error;
+      await supabaseClient.from('audit_logs').insert({
+        id: 'aud-' + Date.now(),
+        workspace_id: item.workspace_id,
+        action: 'toggle_status',
+        actor: 'Human via Dashboard',
+        details: `Updated "${item.title}" to ${nextStatus}`,
+        created_at: now
+      });
+      toast(nextStatus === 'Done' ? 'Marked as completed (Supabase)' : 'Reopened action item (Supabase)');
+      load();
+      return;
+    } catch (e) {
+      toast('Supabase error: ' + e.message);
+    }
+  }
+
   if (isLocalFallback) {
     item.status = nextStatus;
     auditLogs.unshift({
@@ -1296,6 +1462,18 @@ window.editAction = id => openModal(actions.find(a => a.id === id));
 
 window.removeAction = async id => {
   if (!confirm('Delete this action item? This cannot be undone.')) return;
+  if (supabaseClient) {
+    try {
+      const { error } = await supabaseClient.from('actions').delete().eq('id', id);
+      if (error) throw error;
+      toast('Action deleted (Supabase)');
+      load();
+      return;
+    } catch (e) {
+      toast('Supabase error: ' + e.message);
+      return;
+    }
+  }
   try {
     await api('/api/actions/' + id, { method: 'DELETE' });
     toast('Action deleted');
@@ -1314,6 +1492,38 @@ $('actionForm').onsubmit = async e => {
   const data = Object.fromEntries(
     ['title', 'description', 'owner', 'due_date', 'priority', 'status', 'meeting_id', 'amount', 'category', 'workspace_id'].map(k => [k, $(k).value])
   );
+  if (data.amount !== '' && data.amount !== null && data.amount !== undefined) {
+    data.amount = Number(data.amount);
+  } else {
+    data.amount = null;
+  }
+  if (!data.meeting_id) data.meeting_id = null;
+  if (!data.due_date) data.due_date = null;
+
+  if (supabaseClient) {
+    try {
+      const ts = new Date().toISOString();
+      if (id) {
+        data.updated_at = ts;
+        const { error } = await supabaseClient.from('actions').update(data).eq('id', id);
+        if (error) throw error;
+      } else {
+        data.id = 'act-' + Date.now();
+        data.created_at = ts;
+        data.updated_at = ts;
+        const { error } = await supabaseClient.from('actions').insert(data);
+        if (error) throw error;
+      }
+      $('modal').classList.remove('open');
+      toast(id ? 'Action updated (Supabase)' : 'Action created (Supabase)');
+      load();
+      return;
+    } catch (err) {
+      toast('Supabase error: ' + err.message);
+      return;
+    }
+  }
+
   try {
     await api(id ? '/api/actions/' + id : '/api/actions', {
       method: id ? 'PATCH' : 'POST',
@@ -1343,6 +1553,18 @@ window.editMeeting = id => openMeeting(meetings.find(m => m.id === id));
 
 window.removeMeeting = async id => {
   if (!confirm('Delete this meeting? Its action items will be unlinked.')) return;
+  if (supabaseClient) {
+    try {
+      const { error } = await supabaseClient.from('meetings').delete().eq('id', id);
+      if (error) throw error;
+      toast('Meeting deleted (Supabase)');
+      load();
+      return;
+    } catch (e) {
+      toast('Supabase error: ' + e.message);
+      return;
+    }
+  }
   try {
     await api('/api/meetings/' + id, { method: 'DELETE' });
     toast('Meeting deleted');
@@ -1361,10 +1583,33 @@ $('meetingForm').onsubmit = async e => {
   const data = {
     title: $('m_title').value,
     workspace_id: $('m_workspace_id').value,
-    meeting_date: $('m_date').value,
+    meeting_date: $('m_date').value || null,
     attendees: $('m_attendees').value.split(',').map(x => x.trim()).filter(Boolean),
     notes: $('m_notes').value
   };
+
+  if (supabaseClient) {
+    try {
+      const ts = new Date().toISOString();
+      if (id) {
+        const { error } = await supabaseClient.from('meetings').update(data).eq('id', id);
+        if (error) throw error;
+      } else {
+        data.id = 'mtg-' + Date.now();
+        data.created_at = ts;
+        const { error } = await supabaseClient.from('meetings').insert(data);
+        if (error) throw error;
+      }
+      $('mModal').classList.remove('open');
+      toast(id ? 'Meeting updated (Supabase)' : 'Meeting created (Supabase)');
+      load();
+      return;
+    } catch (err) {
+      toast('Supabase error: ' + err.message);
+      return;
+    }
+  }
+
   try {
     await api(id ? '/api/meetings/' + id : '/api/meetings', {
       method: id ? 'PATCH' : 'POST',

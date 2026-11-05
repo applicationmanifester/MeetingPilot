@@ -63,6 +63,34 @@ Add to your `claude_desktop_config.json`:
 
 ---
 
+## ⚡ Supabase Cloud Backend (PostgreSQL + Realtime)
+
+MeetingPilot supports **Supabase** as its cloud database backend. When configured, both the Claude MCP server and the Firebase-hosted dashboard interact with Supabase PostgreSQL with live Realtime subscription updates!
+
+### 1. Set Up Supabase Database
+1. Create a project at [supabase.com](https://supabase.com).
+2. Go to the **SQL Editor** in your Supabase project dashboard.
+3. Paste and run the contents of [`supabase/schema.sql`](file:///supabase/schema.sql). This will:
+   - Create tables: `workspaces`, `meetings`, `actions`, `audit_logs`, `webhooks`
+   - Configure Row Level Security (RLS) open policies
+   - Enable Supabase Realtime replication on `actions` and `meetings`
+   - Insert initial seed workspaces and sample executive syncs
+
+### 2. Configure Backend Credentials
+Add your Supabase project keys to `.env`:
+```env
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your-supabase-service-role-or-anon-key
+```
+
+### 3. Connect from the Live Web Dashboard
+On the live web app ([https://meetingpilot-app.web.app](https://meetingpilot-app.web.app)):
+- Click the **"Backend"** pill in the top header.
+- Enter your Supabase Project URL and Anon Key.
+- Click **Save Supabase Connection**. The dashboard will instantly sync with Supabase and listen for real-time changes!
+
+---
+
 ## 💻 Running Locally
 
 Requirements: Node.js 20+
