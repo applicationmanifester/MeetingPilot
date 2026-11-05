@@ -86,10 +86,7 @@ MeetingPilot uses SQLite with WAL mode.
 
 1. Push this directory to your GitHub repository:
    ```bash
-   git init
-   git add .
-   git commit -m "Deploy MeetingPilot"
-   git remote add origin https://github.com/YOUR_USERNAME/meetingpilot.git
+   git remote add origin https://github.com/applicationmanifester/MeetingPilot.git
    git push -u origin main
    ```
 2. In **Render** (render.com):
