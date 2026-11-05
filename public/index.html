@@ -1,0 +1,933 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MeetingPilot — Turn meetings into momentum</title>
+<meta name="description" content="A calm, clear home for meeting commitments. Managed by you or through Claude via MCP. Zero AI inside.">
+<style>
+:root{
+  --bg:#f8fafc;
+  --panel:#ffffff;
+  --panel-muted:#f1f5f9;
+  --ink:#0f172a;
+  --ink-secondary:#334155;
+  --muted:#64748b;
+  --line:#e2e8f0;
+  --line-strong:#cbd5e1;
+  --blue:#4f46e5;
+  --blue-hover:#4338ca;
+  --blue-light:#eef2ff;
+  --green:#059669;
+  --green-light:#ecfdf5;
+  --red:#dc2626;
+  --red-light:#fef2f2;
+  --amber:#d97706;
+  --amber-light:#fffbeb;
+  --purple:#7c3aed;
+  --purple-light:#f5f3ff;
+  --shadow-sm:0 1px 3px rgba(15,23,42,0.06);
+  --shadow:0 10px 25px -5px rgba(15,23,42,0.06),0 8px 10px -6px rgba(15,23,42,0.04);
+  --radius:14px;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+button,input,textarea,select{font:inherit}
+button{cursor:pointer}
+.shell{max-width:1240px;margin:auto;padding:28px 24px 60px}
+.top{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:16px;
+  margin-bottom:28px;
+  padding-bottom:18px;
+  border-bottom:1px solid var(--line);
+}
+.brand{display:flex;align-items:center;gap:12px;font-weight:800;font-size:21px;letter-spacing:-0.5px}
+.logo{
+  width:40px;
+  height:40px;
+  border-radius:12px;
+  background:linear-gradient(135deg,#4f46e5,#7c3aed);
+  color:#fff;
+  display:grid;
+  place-items:center;
+  font-size:20px;
+  box-shadow:0 4px 12px rgba(79,70,229,0.3);
+}
+.badges{display:flex;align-items:center;gap:10px}
+.tag{
+  font-size:12px;
+  color:var(--green);
+  background:var(--green-light);
+  border:1px solid #a7f3d0;
+  border-radius:20px;
+  padding:5px 12px;
+  font-weight:700;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+}
+.tag-pulse{
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 0 0 rgba(5,150,105,0.7);
+  animation:pulse 2s infinite;
+}
+@keyframes pulse{
+  0%{box-shadow:0 0 0 0 rgba(5,150,105,0.7)}
+  70%{box-shadow:0 0 0 6px rgba(5,150,105,0)}
+  100%{box-shadow:0 0 0 0 rgba(5,150,105,0)}
+}
+.hero{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  gap:20px;
+  margin-bottom:24px;
+}
+.eyebrow{
+  font-size:12px;
+  color:var(--blue);
+  font-weight:800;
+  letter-spacing:1.3px;
+  text-transform:uppercase;
+  margin-bottom:4px;
+}
+.hero h1{font-size:32px;line-height:1.2;letter-spacing:-1px;margin:4px 0 8px;font-weight:800}
+.hero p{color:var(--muted);margin:0;font-size:15px}
+.header-actions{display:flex;gap:10px;align-items:center}
+.primary,.secondary,.danger,.btn-ghost{
+  border:0;
+  border-radius:10px;
+  padding:10px 16px;
+  font-weight:600;
+  font-size:14px;
+  transition:all 0.15s ease;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+}
+.primary{background:var(--blue);color:white}
+.primary:hover{background:var(--blue-hover)}
+.secondary{background:var(--blue-light);color:var(--blue)}
+.secondary:hover{background:#e0e7ff}
+.btn-ghost{background:transparent;border:1px solid var(--line);color:var(--ink-secondary)}
+.btn-ghost:hover{background:var(--panel-muted);border-color:var(--line-strong)}
+.danger{background:var(--red-light);color:var(--red)}
+.danger:hover{background:#fee2e2}
+
+.stats{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:14px;
+  margin-bottom:24px;
+}
+.stat,.panel{
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow-sm);
+}
+.stat{padding:18px 20px}
+.stat small{color:var(--muted);font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:0.5px}
+.stat strong{display:block;font-size:30px;margin-top:6px;letter-spacing:-1px;font-weight:800;color:var(--ink)}
+
+.layout{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 350px;
+  gap:20px;
+  align-items:start;
+}
+.panel{padding:22px}
+.panel-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:18px;
+}
+.panel h2{font-size:18px;margin:0;letter-spacing:-0.4px;font-weight:700}
+.filters{display:flex;gap:8px;flex-wrap:wrap}
+.filters select,.search{
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:#fff;
+  padding:8px 12px;
+  color:var(--ink);
+  font-size:13px;
+}
+.filters select:focus,.search:focus{
+  outline:none;
+  border-color:var(--blue);
+  box-shadow:0 0 0 2px var(--blue-light);
+}
+.search{width:210px}
+
+/* Action Task Card */
+.task{
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:15px 16px;
+  margin-bottom:12px;
+  display:grid;
+  grid-template-columns:auto 1fr auto;
+  gap:14px;
+  align-items:start;
+  background:#fff;
+  transition:all 0.15s ease;
+}
+.task:hover{
+  border-color:var(--line-strong);
+  box-shadow:0 4px 12px rgba(15,23,42,0.03);
+}
+.task.task-done{
+  background:#fafbfc;
+  opacity:0.85;
+}
+.task.task-done h3{
+  text-decoration:line-through;
+  color:var(--muted);
+}
+.task-check{
+  width:22px;
+  height:22px;
+  border-radius:6px;
+  border:2px solid var(--line-strong);
+  background:white;
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+  margin-top:2px;
+  transition:all 0.15s ease;
+}
+.task-check:hover{border-color:var(--blue)}
+.task-done .task-check{
+  background:var(--green);
+  border-color:var(--green);
+  color:white;
+}
+.task h3{font-size:15px;margin:0 0 5px;font-weight:600;letter-spacing:-0.2px}
+.task p{font-size:13px;color:var(--muted);margin:0 0 10px;line-height:1.4}
+.meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.pill{
+  font-size:11px;
+  padding:4px 9px;
+  border-radius:20px;
+  background:#f1f5f9;
+  color:var(--ink-secondary);
+  font-weight:600;
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+}
+.status-Done{background:var(--green-light);color:var(--green);border:1px solid #a7f3d0}
+.status-Blocked{background:var(--red-light);color:var(--red);border:1px solid #fecaca}
+.status-In-progress{background:var(--amber-light);color:var(--amber);border:1px solid #fde68a}
+.status-Open{background:#f1f5f9;color:var(--ink-secondary);border:1px solid var(--line)}
+.priority-Urgent{color:var(--red);background:var(--red-light);font-weight:700;border:1px solid #fecaca}
+.priority-High{color:#b91c1c;background:#fff1f2;font-weight:700}
+.priority-Medium{color:#0369a1;background:#f0f9ff}
+.priority-Low{color:var(--muted);background:#f1f5f9}
+.pill-overdue{background:var(--red-light);color:var(--red);font-weight:700;border:1px solid #fecaca}
+
+.actions{display:flex;gap:6px;align-items:center}
+.iconbtn{
+  border:1px solid var(--line);
+  background:white;
+  border-radius:8px;
+  padding:6px 10px;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:600;
+  transition:all 0.15s ease;
+}
+.iconbtn:hover{background:var(--panel-muted);color:var(--ink);border-color:var(--line-strong)}
+.iconbtn.del:hover{background:var(--red-light);color:var(--red);border-color:#fca5a5}
+
+/* Meeting Cards */
+.mtg{
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:14px 16px;
+  margin-bottom:12px;
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:12px;
+  background:#fff;
+  transition:all 0.15s ease;
+}
+.mtg:hover{
+  border-color:var(--line-strong);
+  box-shadow:0 4px 12px rgba(15,23,42,0.03);
+}
+.mtg h3{font-size:15px;margin:0 0 4px;font-weight:600}
+.mtg p{font-size:13px;color:var(--muted);margin:0 0 8px;white-space:pre-wrap;line-height:1.4}
+
+/* Sidebar Connect to Claude Card */
+.side-card{
+  padding:16px;
+  border-radius:12px;
+  background:var(--panel-muted);
+  border:1px solid var(--line);
+  margin-bottom:16px;
+}
+.side-card h3{font-size:14px;margin:0 0 6px;font-weight:700;color:var(--ink)}
+.side-card p{font-size:13px;color:var(--muted);margin:0;line-height:1.4}
+.prompt-box{
+  background:#ffffff;
+  border:1px solid var(--line);
+  border-radius:9px;
+  padding:11px 12px;
+  font-size:12px;
+  color:var(--ink-secondary);
+  line-height:1.45;
+  margin-top:10px;
+  position:relative;
+}
+.copy-prompt-btn{
+  margin-top:8px;
+  width:100%;
+  font-size:12px;
+  padding:7px 10px;
+}
+
+/* Tabs */
+.tabs{display:flex;gap:4px;margin-bottom:10px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.tab-btn{
+  background:transparent;
+  border:0;
+  font-size:12px;
+  font-weight:600;
+  color:var(--muted);
+  padding:6px 10px;
+  border-radius:6px;
+}
+.tab-btn.active{
+  color:var(--blue);
+  background:var(--blue-light);
+}
+.tab-content{display:none;font-size:12px;line-height:1.45}
+.tab-content.active{display:block}
+.code-block{
+  font:12px ui-monospace,SFMono-Regular,Consolas,monospace;
+  word-break:break-all;
+  background:#1e293b;
+  color:#f8fafc;
+  padding:10px;
+  border-radius:8px;
+  margin:8px 0;
+  user-select:all;
+}
+.mcp-url{
+  font:12px ui-monospace,SFMono-Regular,Consolas,monospace;
+  word-break:break-all;
+  background:#ffffff;
+  border:1px solid var(--line);
+  padding:10px;
+  border-radius:8px;
+  margin:10px 0;
+  color:var(--ink);
+  font-weight:600;
+}
+
+.empty{
+  text-align:center;
+  padding:44px 16px;
+  color:var(--muted);
+  background:#fff;
+  border:1px dashed var(--line-strong);
+  border-radius:12px;
+}
+.empty strong{display:block;color:var(--ink);margin-bottom:6px;font-size:15px}
+
+/* Modal */
+.modal{
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,0.5);
+  backdrop-filter:blur(2px);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  z-index:100;
+}
+.modal.open{display:flex}
+.dialog{
+  background:white;
+  border-radius:16px;
+  width:min(540px,100%);
+  padding:24px;
+  box-shadow:0 25px 50px -12px rgba(15,23,42,0.25);
+}
+.dialog h2{margin:0 0 18px;font-size:19px;font-weight:700}
+.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field.full{grid-column:1/-1}
+.field label{font-size:12px;font-weight:700;color:var(--muted)}
+.field input,.field textarea,.field select{
+  border:1px solid var(--line);
+  border-radius:9px;
+  padding:10px 12px;
+  background:#fff;
+  min-width:0;
+}
+.field input:focus,.field textarea:focus,.field select:focus{
+  outline:none;
+  border-color:var(--blue);
+  box-shadow:0 0 0 2px var(--blue-light);
+}
+.field textarea{min-height:80px;resize:vertical}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+
+/* Toast */
+.toast{
+  position:fixed;
+  right:24px;
+  bottom:24px;
+  background:#0f172a;
+  color:white;
+  padding:12px 18px;
+  border-radius:10px;
+  font-size:13px;
+  font-weight:600;
+  display:none;
+  box-shadow:0 10px 25px rgba(0,0,0,0.2);
+  z-index:200;
+}
+.toast.show{display:block;animation:slideIn 0.2s ease}
+@keyframes slideIn{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+@media(max-width:900px){
+  .layout{grid-template-columns:1fr}
+  .stats{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:600px){
+  .shell{padding:18px 14px 40px}
+  .hero{align-items:flex-start;flex-direction:column}
+  .hero h1{font-size:26px}
+  .stats{gap:10px}
+  .stat{padding:14px}
+  .stat strong{font-size:24px}
+  .panel{padding:16px}
+  .search{width:100%}
+  .panel-head{align-items:flex-start;flex-direction:column}
+  .formgrid{grid-template-columns:1fr}
+  .field.full{grid-column:auto}
+  .task{grid-template-columns:auto 1fr}
+  .actions{grid-column:1/-1;justify-content:flex-end}
+}
+</style>
+</head>
+<body>
+<main class="shell">
+  <header class="top">
+    <div class="brand">
+      <div class="logo">↗</div>
+      MeetingPilot
+    </div>
+    <div class="badges">
+      <span class="tag"><span class="tag-pulse"></span>Live MCP Server</span>
+      <span class="pill" style="background:#e0e7ff;color:#3730a3;font-weight:700">0 AI Inside · Pure MCP</span>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div>
+      <div class="eyebrow">Meeting Action-Management Workspace</div>
+      <h1>Turn meetings into momentum.</h1>
+      <p>Your Claude does the thinking. MeetingPilot stores, edits, and keeps every commitment live.</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-ghost" id="seedBtn" title="Load sample sync with 2 action items">🔄 Seed sample</button>
+      <button class="primary" id="newAction">＋ New action</button>
+    </div>
+  </section>
+
+  <section class="stats">
+    <div class="stat"><small>Meetings Captured</small><strong id="meetingsCount">0</strong></div>
+    <div class="stat"><small>Total Action Items</small><strong id="actionsCount">0</strong></div>
+    <div class="stat"><small>In Progress</small><strong id="progressCount" style="color:var(--amber)">0</strong></div>
+    <div class="stat"><small>Completed</small><strong id="doneCount" style="color:var(--green)">0</strong></div>
+  </section>
+
+  <section class="layout">
+    <div>
+      <!-- Meetings Panel -->
+      <div class="panel" style="margin-bottom:20px">
+        <div class="panel-head">
+          <h2>Meetings</h2>
+          <button class="secondary" id="newMeeting">＋ New meeting</button>
+        </div>
+        <div id="meetingList"></div>
+      </div>
+
+      <!-- Action Items Panel -->
+      <div class="panel">
+        <div class="panel-head">
+          <h2>Action Items</h2>
+          <div class="filters">
+            <input class="search" id="search" placeholder="Search actions or owners…">
+            <select id="statusFilter">
+              <option value="">All statuses</option>
+              <option>Open</option>
+              <option>In progress</option>
+              <option>Blocked</option>
+              <option>Done</option>
+            </select>
+          </div>
+        </div>
+        <div id="taskList"></div>
+      </div>
+    </div>
+
+    <!-- Right Sidebar -->
+    <aside class="panel">
+      <div class="panel-head">
+        <h2>Connect Your Claude</h2>
+        <span class="tag" style="padding:3px 8px;font-size:11px">Remote MCP</span>
+      </div>
+
+      <div class="side-card">
+        <h3>Live MCP Endpoint</h3>
+        <p>Connect any Claude client via Streamable HTTP (or legacy SSE):</p>
+        <div class="mcp-url" id="mcpUrl">Loading…</div>
+        <button class="secondary" id="copyMcp" style="width:100%;justify-content:center">📋 Copy MCP link</button>
+      </div>
+
+      <!-- Instructions Tabs -->
+      <div class="side-card">
+        <div class="tabs">
+          <button class="tab-btn active" onclick="switchTab('claude-ai')">claude.ai</button>
+          <button class="tab-btn" onclick="switchTab('claude-code')">Claude Code</button>
+          <button class="tab-btn" onclick="switchTab('desktop')">Desktop</button>
+        </div>
+
+        <div id="tab-claude-ai" class="tab-content active">
+          <ol style="margin:0;padding-left:18px;color:var(--ink-secondary)">
+            <li>Open Claude &rarr; <strong>Settings &rarr; Connectors</strong></li>
+            <li>Click <strong>Add Remote MCP Server</strong></li>
+            <li>Paste your MeetingPilot MCP URL</li>
+            <li>Enable tools &amp; prompt Claude!</li>
+          </ol>
+        </div>
+
+        <div id="tab-claude-code" class="tab-content">
+          <p style="margin:0 0 6px;color:var(--muted)">Run this command in terminal:</p>
+          <div class="code-block" id="codeCmd">claude mcp add --transport http meetingpilot &lt;URL&gt;</div>
+          <button class="btn-ghost" id="copyCmd" style="width:100%;justify-content:center;font-size:12px;padding:6px">Copy Command</button>
+        </div>
+
+        <div id="tab-desktop" class="tab-content">
+          <p style="margin:0 0 6px;color:var(--muted)">In <code>claude_desktop_config.json</code>:</p>
+          <pre class="code-block" id="desktopJson" style="font-size:11px">{
+  "mcpServers": {
+    "meetingpilot": {
+      "type": "http",
+      "url": "..."
+    }
+  }
+}</pre>
+          <button class="btn-ghost" id="copyJson" style="width:100%;justify-content:center;font-size:12px;padding:6px">Copy Config</button>
+        </div>
+      </div>
+
+      <!-- Sample Prompt -->
+      <div class="side-card" style="margin-bottom:0">
+        <h3>Try this prompt in Claude</h3>
+        <div class="prompt-box" id="samplePromptText">“Create a meeting called Weekly Product Sync with attendees Bhargav, Priya, and Alex. Add an action for Priya to send the release plan by Friday (High priority), and an action for Alex to confirm QA sign-off (Urgent priority).”</div>
+        <button class="secondary copy-prompt-btn" id="copyPrompt">Copy sample prompt</button>
+      </div>
+
+      <hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
+
+      <div style="font-size:12px;color:var(--muted);line-height:1.5">
+        <strong style="color:var(--ink)">Strict No-AI Guarantee:</strong> MeetingPilot contains 0 AI API keys, 0 AI models, and 0 external AI SDKs. All intelligence is provided by the customer's own Claude via open MCP standards.
+      </div>
+    </aside>
+  </section>
+</main>
+
+<!-- Action Item Modal -->
+<div class="modal" id="modal">
+  <div class="dialog">
+    <h2 id="modalTitle">New Action Item</h2>
+    <form id="actionForm">
+      <input type="hidden" id="actionId">
+      <div class="formgrid">
+        <div class="field full">
+          <label>Action Title *</label>
+          <input id="title" required placeholder="e.g. Share revised release schedule">
+        </div>
+        <div class="field full">
+          <label>Description</label>
+          <textarea id="description" placeholder="Context, details, or acceptance criteria"></textarea>
+        </div>
+        <div class="field">
+          <label>Owner</label>
+          <input id="owner" placeholder="Person responsible">
+        </div>
+        <div class="field">
+          <label>Due Date</label>
+          <input id="due_date" type="date">
+        </div>
+        <div class="field full">
+          <label>Meeting</label>
+          <select id="meeting_id">
+            <option value="">— None —</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Priority</label>
+          <select id="priority">
+            <option>Low</option>
+            <option selected>Medium</option>
+            <option>High</option>
+            <option>Urgent</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Status</label>
+          <select id="status">
+            <option>Open</option>
+            <option>In progress</option>
+            <option>Blocked</option>
+            <option>Done</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" id="cancel">Cancel</button>
+        <button class="primary" type="submit">Save Action</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Meeting Modal -->
+<div class="modal" id="mModal">
+  <div class="dialog">
+    <h2 id="mTitle">New Meeting</h2>
+    <form id="meetingForm">
+      <input type="hidden" id="mId">
+      <div class="formgrid">
+        <div class="field full">
+          <label>Meeting Title *</label>
+          <input id="m_title" required placeholder="e.g. Weekly Product Sync">
+        </div>
+        <div class="field">
+          <label>Date</label>
+          <input id="m_date" type="date">
+        </div>
+        <div class="field">
+          <label>Attendees (comma separated)</label>
+          <input id="m_attendees" placeholder="Bhargav, Priya, Alex">
+        </div>
+        <div class="field full">
+          <label>Meeting Notes</label>
+          <textarea id="m_notes" placeholder="Summary, key discussion points, or agenda"></textarea>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" id="mCancel">Cancel</button>
+        <button class="primary" type="submit">Save Meeting</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+let actions = [], meetings = [];
+
+const api = async (url, opts = {}) => {
+  const r = await fetch(url, {
+    headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
+    ...opts
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({ error: 'Request failed' }));
+    throw new Error(err.error || 'Request failed');
+  }
+  return r.json();
+};
+
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+function esc(s = '') {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function isOverdue(dateStr, status) {
+  if (!dateStr || status === 'Done') return false;
+  const today = new Date().toISOString().split('T')[0];
+  return dateStr < today;
+}
+
+function render() {
+  const q = $('search').value.toLowerCase();
+  const f = $('statusFilter').value;
+  const visible = actions.filter(a => {
+    const matchStatus = !f || a.status === f;
+    const matchText = [a.title, a.owner, a.description, a.meeting_title].join(' ').toLowerCase().includes(q);
+    return matchStatus && matchText;
+  });
+
+  $('meetingsCount').textContent = meetings.length;
+  $('actionsCount').textContent = actions.length;
+  $('progressCount').textContent = actions.filter(a => a.status === 'In progress').length;
+  $('doneCount').textContent = actions.filter(a => a.status === 'Done').length;
+
+  $('taskList').innerHTML = visible.length ? visible.map(a => {
+    const done = a.status === 'Done';
+    const overdue = isOverdue(a.due_date, a.status);
+    return `
+      <article class="task ${done ? 'task-done' : ''}">
+        <div class="task-check" title="Toggle completion" onclick="toggleActionDone('${a.id}')">
+          ${done ? '✓' : ''}
+        </div>
+        <div>
+          <h3>${esc(a.title)}</h3>
+          ${a.description ? `<p>${esc(a.description)}</p>` : ''}
+          <div class="meta">
+            <span class="pill status-${a.status.replace(/\s+/g, '-')}">${esc(a.status)}</span>
+            <span class="pill priority-${esc(a.priority)}">${esc(a.priority)}</span>
+            ${a.meeting_title ? `<span class="pill">▤ ${esc(a.meeting_title)}</span>` : ''}
+            ${a.owner ? `<span class="pill">◉ ${esc(a.owner)}</span>` : ''}
+            ${a.due_date ? `<span class="pill ${overdue ? 'pill-overdue' : ''}">${overdue ? '⚠️ ' : ''}Due ${esc(a.due_date)}</span>` : ''}
+          </div>
+        </div>
+        <div class="actions">
+          <button class="iconbtn" onclick="editAction('${a.id}')">Edit</button>
+          <button class="iconbtn del" onclick="removeAction('${a.id}')">×</button>
+        </div>
+      </article>
+    `;
+  }).join('') : '<div class="empty"><strong>No action items found</strong>Ask Claude to capture your meeting, or create one manually.</div>';
+
+  $('meetingList').innerHTML = meetings.length ? meetings.map(m => {
+    const count = actions.filter(a => a.meeting_id === m.id).length;
+    return `
+      <article class="mtg">
+        <div>
+          <h3>${esc(m.title)}</h3>
+          ${m.notes ? `<p>${esc(m.notes)}</p>` : ''}
+          <div class="meta">
+            ${m.meeting_date ? `<span class="pill">📅 ${esc(m.meeting_date)}</span>` : ''}
+            ${(m.attendees || []).map(x => `<span class="pill">◉ ${esc(x)}</span>`).join('')}
+            <span class="pill" style="font-weight:700">${count} action${count === 1 ? '' : 's'}</span>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="iconbtn" onclick="editMeeting('${m.id}')">Edit</button>
+          <button class="iconbtn del" onclick="removeMeeting('${m.id}')">×</button>
+        </div>
+      </article>
+    `;
+  }).join('') : '<div class="empty"><strong>No meetings yet</strong>Ask Claude to capture one, or click "+ New meeting".</div>';
+}
+
+async function load() {
+  try {
+    [actions, meetings] = await Promise.all([
+      api('/api/actions'),
+      api('/api/meetings')
+    ]);
+    render();
+  } catch (e) {
+    toast(e.message);
+  }
+}
+
+window.toggleActionDone = async id => {
+  const item = actions.find(a => a.id === id);
+  if (!item) return;
+  const nextStatus = item.status === 'Done' ? 'Open' : 'Done';
+  try {
+    await api('/api/actions/' + id, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: nextStatus })
+    });
+    toast(nextStatus === 'Done' ? 'Marked as completed' : 'Reopened action item');
+    load();
+  } catch (e) {
+    toast(e.message);
+  }
+};
+
+function openModal(a) {
+  $('actionForm').reset();
+  $('meeting_id').innerHTML = '<option value="">— None —</option>' +
+    meetings.map(m => `<option value="${m.id}">${esc(m.title)}</option>`).join('');
+  $('actionId').value = a?.id || '';
+  $('modalTitle').textContent = a ? 'Edit Action Item' : 'New Action Item';
+  for (const k of ['title', 'description', 'owner', 'due_date', 'priority', 'status', 'meeting_id']) {
+    $(k).value = a?.[k] ?? (k === 'priority' ? 'Medium' : k === 'status' ? 'Open' : '');
+  }
+  $('modal').classList.add('open');
+}
+
+window.editAction = id => openModal(actions.find(a => a.id === id));
+
+window.removeAction = async id => {
+  if (!confirm('Delete this action item? This cannot be undone.')) return;
+  try {
+    await api('/api/actions/' + id, { method: 'DELETE' });
+    toast('Action deleted');
+    load();
+  } catch (e) {
+    toast(e.message);
+  }
+};
+
+$('newAction').onclick = () => openModal();
+$('cancel').onclick = () => $('modal').classList.remove('open');
+
+$('actionForm').onsubmit = async e => {
+  e.preventDefault();
+  const id = $('actionId').value;
+  const data = Object.fromEntries(
+    ['title', 'description', 'owner', 'due_date', 'priority', 'status', 'meeting_id'].map(k => [k, $(k).value])
+  );
+  try {
+    await api(id ? '/api/actions/' + id : '/api/actions', {
+      method: id ? 'PATCH' : 'POST',
+      body: JSON.stringify(data)
+    });
+    $('modal').classList.remove('open');
+    toast(id ? 'Action updated' : 'Action created');
+    load();
+  } catch (err) {
+    toast(err.message);
+  }
+};
+
+function openMeeting(m) {
+  $('meetingForm').reset();
+  $('mId').value = m?.id || '';
+  $('mTitle').textContent = m ? 'Edit Meeting' : 'New Meeting';
+  $('m_title').value = m?.title || '';
+  $('m_date').value = m?.meeting_date || '';
+  $('m_attendees').value = (m?.attendees || []).join(', ');
+  $('m_notes').value = m?.notes || '';
+  $('mModal').classList.add('open');
+}
+
+window.editMeeting = id => openMeeting(meetings.find(m => m.id === id));
+
+window.removeMeeting = async id => {
+  if (!confirm('Delete this meeting? Its action items will be unlinked.')) return;
+  try {
+    await api('/api/meetings/' + id, { method: 'DELETE' });
+    toast('Meeting deleted');
+    load();
+  } catch (e) {
+    toast(e.message);
+  }
+};
+
+$('newMeeting').onclick = () => openMeeting();
+$('mCancel').onclick = () => $('mModal').classList.remove('open');
+
+$('meetingForm').onsubmit = async e => {
+  e.preventDefault();
+  const id = $('mId').value;
+  const data = {
+    title: $('m_title').value,
+    meeting_date: $('m_date').value,
+    attendees: $('m_attendees').value.split(',').map(x => x.trim()).filter(Boolean),
+    notes: $('m_notes').value
+  };
+  try {
+    await api(id ? '/api/meetings/' + id : '/api/meetings', {
+      method: id ? 'PATCH' : 'POST',
+      body: JSON.stringify(data)
+    });
+    $('mModal').classList.remove('open');
+    toast(id ? 'Meeting updated' : 'Meeting created');
+    load();
+  } catch (err) {
+    toast(err.message);
+  }
+};
+
+$('seedBtn').onclick = async () => {
+  try {
+    await api('/api/seed-sample?clear=true', { method: 'POST' });
+    toast('Sample meeting & actions loaded');
+    load();
+  } catch (e) {
+    toast(e.message);
+  }
+};
+
+$('search').oninput = render;
+$('statusFilter').onchange = render;
+
+// MCP Setup Links & Tabs
+const mcpEndpoint = location.origin + '/mcp';
+$('mcpUrl').textContent = mcpEndpoint;
+
+$('copyMcp').onclick = async () => {
+  await navigator.clipboard.writeText(mcpEndpoint);
+  toast('MCP URL copied to clipboard');
+};
+
+$('codeCmd').textContent = `claude mcp add --transport http meetingpilot ${mcpEndpoint}`;
+$('copyCmd').onclick = async () => {
+  await navigator.clipboard.writeText(`claude mcp add --transport http meetingpilot ${mcpEndpoint}`);
+  toast('CLI command copied');
+};
+
+const desktopConfig = JSON.stringify({
+  mcpServers: {
+    meetingpilot: {
+      type: "http",
+      url: mcpEndpoint
+    }
+  }
+}, null, 2);
+$('desktopJson').textContent = desktopConfig;
+$('copyJson').onclick = async () => {
+  await navigator.clipboard.writeText(desktopConfig);
+  toast('Desktop config copied');
+};
+
+$('copyPrompt').onclick = async () => {
+  const text = $('samplePromptText').textContent.replace(/[“”]/g, '');
+  await navigator.clipboard.writeText(text);
+  toast('Sample prompt copied');
+};
+
+window.switchTab = tabId => {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  event.target.classList.add('active');
+  $('tab-' + tabId).classList.add('active');
+};
+
+// Initial load & 10s auto-refresh
+load();
+setInterval(() => {
+  if (!document.querySelector('.modal.open')) load();
+}, 10000);
+</script>
+</body>
+</html>
