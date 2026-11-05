@@ -1090,17 +1090,18 @@ let isLocalFallback = false;
 let activeQuickFilter = 'all';
 
 // Default public live backend tunnel verified on localhost.run
-const DEFAULT_LIVE_BACKEND = 'https://b617ed4c4494b3.lhr.life';
+const DEFAULT_LIVE_BACKEND = 'https://fc10b459a0aeae.lhr.life';
+const DEFAULT_SB_URL = 'https://magysstkgdiyqvmfbjjc.supabase.co';
 
-// Supabase client initialization (if configured by user)
+// Supabase client initialization (optional browser direct client if user saves key in localStorage)
 let supabaseClient = null;
-const sbUrl = localStorage.getItem('meetingpilot_sb_url') || 'https://magysstkgdiyqvmfbjjc.supabase.co';
+const sbUrl = localStorage.getItem('meetingpilot_sb_url') || DEFAULT_SB_URL;
 const sbKey = localStorage.getItem('meetingpilot_sb_key') || '';
 
 if (window.supabase && sbUrl && sbKey) {
   try {
     supabaseClient = window.supabase.createClient(sbUrl, sbKey);
-    console.log('[MeetingPilot] Connected to Supabase Cloud:', sbUrl);
+    console.log('[MeetingPilot] Connected to Supabase Cloud directly in browser:', sbUrl);
   } catch (err) {
     console.error('Supabase init error:', err);
   }
@@ -1172,7 +1173,7 @@ window.runLiveHandshakeTest = async () => {
 };
 
 window.configureBackend = () => {
-  $('cfg_sb_url').value = localStorage.getItem('meetingpilot_sb_url') || 'https://magysstkgdiyqvmfbjjc.supabase.co';
+  $('cfg_sb_url').value = localStorage.getItem('meetingpilot_sb_url') || DEFAULT_SB_URL;
   $('cfg_sb_key').value = localStorage.getItem('meetingpilot_sb_key') || '';
   $('cfg_api_url').value = localStorage.getItem('meetingpilot_api_base') || getApiBase();
   $('backendModal').classList.add('open');
