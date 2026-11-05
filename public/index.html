@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>MeetingPilot — Enterprise Meeting Action Management</title>
 <meta name="description" content="Enterprise meeting accountability and action-management SaaS powered by Claude via MCP. Zero AI inside.">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('meetingpilot_theme')||'light'}catch{document.documentElement.dataset.theme='light'}</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
@@ -31,6 +32,15 @@
   --shadow:0 10px 25px -5px rgba(15,23,42,0.06);
   --radius:14px;
 }
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0b1220;--panel:#111c2e;--panel-muted:#172338;
+  --ink:#e5edf8;--ink-secondary:#c1cee0;--muted:#91a1b8;
+  --line:#26364d;--line-strong:#3b4e68;--blue-light:#202a4a;
+  --green-light:#12382f;--red-light:#3d2029;--amber-light:#3d311c;
+  --purple-light:#302345;--shadow-sm:0 1px 3px rgba(0,0,0,0.22);
+  --shadow:0 10px 25px -5px rgba(0,0,0,0.28);
+}
 *{box-sizing:border-box}
 body{
   margin:0;
@@ -53,6 +63,13 @@ button{cursor:pointer}
   flex-wrap:wrap;
 }
 .brand{display:flex;align-items:center;gap:12px;font-weight:800;font-size:22px;letter-spacing:-0.5px}
+.brand-group{display:flex;align-items:center;gap:12px}
+.theme-toggle{width:40px;height:40px;display:grid;place-items:center;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink-secondary);box-shadow:var(--shadow-sm);transition:all .15s ease}
+.theme-toggle:hover{background:var(--panel-muted);border-color:var(--line-strong);color:var(--ink)}
+.theme-toggle svg{width:19px;height:19px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.theme-toggle .moon-icon{display:none}
+:root[data-theme="dark"] .theme-toggle .sun-icon{display:none}
+:root[data-theme="dark"] .theme-toggle .moon-icon{display:block}
 .logo{
   width:40px;
   height:40px;
@@ -553,6 +570,36 @@ button{cursor:pointer}
 .toast.show{display:block;animation:slideIn 0.2s ease}
 @keyframes slideIn{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
 
+/* Dark theme for surfaces that use fixed light colors in the original palette. */
+:root[data-theme="dark"] .ws-picker,
+:root[data-theme="dark"] .vtab-btn.active,
+:root[data-theme="dark"] .filters select,
+:root[data-theme="dark"] .search,
+:root[data-theme="dark"] .chip,
+:root[data-theme="dark"] .task,
+:root[data-theme="dark"] .task-check,
+:root[data-theme="dark"] .iconbtn,
+:root[data-theme="dark"] .mtg,
+:root[data-theme="dark"] .prompt-box,
+:root[data-theme="dark"] .mcp-url,
+:root[data-theme="dark"] .empty,
+:root[data-theme="dark"] .dialog,
+:root[data-theme="dark"] .field input,
+:root[data-theme="dark"] .field textarea,
+:root[data-theme="dark"] .field select,
+:root[data-theme="dark"] [style*="background:#fff"],
+:root[data-theme="dark"] [style*="background:#ffffff"]{
+  background-color:var(--panel)!important;
+  color:var(--ink);
+}
+:root[data-theme="dark"] .task.task-done{background:#0e1929!important}
+:root[data-theme="dark"] .decision-box{background:var(--panel-muted);border-color:var(--line)}
+:root[data-theme="dark"] .decision-item{border-bottom-color:var(--line)}
+:root[data-theme="dark"] .chip.active{border-color:var(--line-strong)}
+:root[data-theme="dark"] .field input::placeholder,
+:root[data-theme="dark"] .field textarea::placeholder,
+:root[data-theme="dark"] .search::placeholder{color:var(--muted)}
+
 @media(max-width:960px){
   .layout{grid-template-columns:1fr}
   .stats{grid-template-columns:repeat(2,1fr)}
@@ -575,9 +622,15 @@ button{cursor:pointer}
 <main class="shell">
   <!-- Top Navigation Bar -->
   <header class="top">
-    <div class="brand">
-      <div class="logo">↗</div>
-      MeetingPilot
+    <div class="brand-group">
+      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Switch to dark theme" title="Switch to dark theme">
+        <svg class="sun-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"></path></svg>
+        <svg class="moon-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.6 8.6 0 1 0 20.5 14.2Z"></path></svg>
+      </button>
+      <div class="brand">
+        <div class="logo">↗</div>
+        MeetingPilot
+      </div>
     </div>
     
     <div class="top-center">
@@ -987,10 +1040,10 @@ button{cursor:pointer}
       <div style="font-weight:700;font-size:13px;margin-bottom:6px;color:#1e293b">⚡ Option 1: Supabase Cloud Database</div>
       <div class="field" style="margin-bottom:10px">
         <label>Supabase Project URL</label>
-        <input id="cfg_sb_url" placeholder="https://your-project.supabase.co">
+        <input id="cfg_sb_url" placeholder="https://magysstkgdiyqvmfbjjc.supabase.co" value="https://magysstkgdiyqvmfbjjc.supabase.co">
       </div>
       <div class="field">
-        <label>Supabase Anon Key</label>
+        <label>Supabase Anon / Service Role Key</label>
         <input id="cfg_sb_key" type="password" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
       </div>
       <div style="margin-top:10px;display:flex;gap:8px">
@@ -1021,6 +1074,17 @@ button{cursor:pointer}
 
 <script>
 const $ = id => document.getElementById(id);
+const themeToggle = $('themeToggle');
+function setTheme(theme){
+  const nextTheme = theme === 'dark' ? 'dark' : 'light';
+  document.documentElement.dataset.theme = nextTheme;
+  try{localStorage.setItem('meetingpilot_theme', nextTheme)}catch{}
+  const label = nextTheme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme';
+  themeToggle.setAttribute('aria-label', label);
+  themeToggle.title = label;
+}
+setTheme(document.documentElement.dataset.theme || 'light');
+themeToggle.addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
 let actions = [], meetings = [], auditLogs = [], analytics = {}, webhooks = [];
 let isLocalFallback = false;
 let activeQuickFilter = 'all';
@@ -1030,7 +1094,7 @@ const DEFAULT_LIVE_BACKEND = 'https://b617ed4c4494b3.lhr.life';
 
 // Supabase client initialization (if configured by user)
 let supabaseClient = null;
-const sbUrl = localStorage.getItem('meetingpilot_sb_url') || '';
+const sbUrl = localStorage.getItem('meetingpilot_sb_url') || 'https://magysstkgdiyqvmfbjjc.supabase.co';
 const sbKey = localStorage.getItem('meetingpilot_sb_key') || '';
 
 if (window.supabase && sbUrl && sbKey) {
@@ -1108,7 +1172,7 @@ window.runLiveHandshakeTest = async () => {
 };
 
 window.configureBackend = () => {
-  $('cfg_sb_url').value = localStorage.getItem('meetingpilot_sb_url') || '';
+  $('cfg_sb_url').value = localStorage.getItem('meetingpilot_sb_url') || 'https://magysstkgdiyqvmfbjjc.supabase.co';
   $('cfg_sb_key').value = localStorage.getItem('meetingpilot_sb_key') || '';
   $('cfg_api_url').value = localStorage.getItem('meetingpilot_api_base') || getApiBase();
   $('backendModal').classList.add('open');
