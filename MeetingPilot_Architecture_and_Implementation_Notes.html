@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MeetingPilot — Architecture & Implementation Notes</title>
+<style>
+  @page {
+    size: A4 portrait;
+    margin: 10mm 13mm 10mm 13mm;
+  }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #0f172a;
+    background: #ffffff;
+    font-size: 8.8pt;
+    line-height: 1.38;
+  }
+  
+  .page {
+    height: 275mm;
+    max-height: 275mm;
+    page-break-after: always;
+    break-after: page;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .page:last-child {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  .page-header {
+    border-bottom: 2px solid #4f46e5;
+    padding-bottom: 5px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+  .brand-title {
+    font-size: 16pt;
+    font-weight: 800;
+    color: #1e1b4b;
+    letter-spacing: -0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .badge {
+    background: #eef2ff;
+    color: #4f46e5;
+    border: 1px solid #c7d2fe;
+    font-size: 7.5pt;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 8px;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }
+  .badge-green {
+    background: #ecfdf5;
+    color: #059669;
+    border-color: #a7f3d0;
+  }
+  .doc-subtitle {
+    font-size: 8.5pt;
+    color: #475569;
+    font-weight: 500;
+    margin-top: 1px;
+  }
+
+  .section {
+    margin-bottom: 8px;
+  }
+  .section-title {
+    font-size: 10pt;
+    font-weight: 800;
+    color: #1e293b;
+    border-left: 3.5px solid #4f46e5;
+    padding-left: 6px;
+    margin: 0 0 4px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 6px 9px;
+    margin-bottom: 4px;
+  }
+  .card-highlight {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+  }
+  .card-indigo {
+    background: #f5f3ff;
+    border: 1px solid #ddd6fe;
+  }
+  .card-title {
+    font-size: 8.8pt;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 2px;
+  }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 7px;
+  }
+
+  pre.diagram {
+    background: #0f172a;
+    color: #38bdf8;
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 6.1pt;
+    line-height: 1.18;
+    overflow: hidden;
+    margin: 2px 0 6px 0;
+    border: 1px solid #1e293b;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8pt;
+    margin-top: 3px;
+    margin-bottom: 5px;
+  }
+  th {
+    background: #1e293b;
+    color: #ffffff;
+    font-weight: 700;
+    text-align: left;
+    padding: 4px 6px;
+    border: 1px solid #1e293b;
+  }
+  td {
+    padding: 3.5px 6px;
+    border: 1px solid #e2e8f0;
+    vertical-align: top;
+  }
+  tr:nth-child(even) td { background: #f8fafc; }
+
+  ul {
+    margin: 2px 0 2px 13px;
+    padding: 0;
+  }
+  li {
+    margin-bottom: 2px;
+  }
+
+  .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 7.5pt;
+    color: #334155;
+  }
+  .bold { font-weight: 700; color: #0f172a; }
+
+  .page-footer {
+    border-top: 1px solid #cbd5e1;
+    padding-top: 4px;
+    margin-top: 4px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 7.5pt;
+    color: #64748b;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================================================== -->
+<!-- PAGE 1: ARCHITECTURE TOPOLOGY & DATA FLOW -->
+<!-- ============================================================================== -->
+<div class="page">
+  <div>
+    <div class="page-header">
+      <div>
+        <div class="brand-title">
+          <span>MeetingPilot</span>
+          <span class="badge">Architecture & Implementation Notes</span>
+        </div>
+        <div class="doc-subtitle">Decoupled Reasoning & Persistence Architecture · Claude Model Context Protocol (MCP)</div>
+      </div>
+      <div style="text-align:right;">
+        <span class="badge badge-green">PAGE 1 OF 3</span>
+        <div style="font-size:7.5pt;color:#64748b;margin-top:2px;">Topology & Data Flow</div>
+      </div>
+    </div>
+
+    <!-- 1. Architecture Diagram -->
+    <div class="section">
+      <div class="section-title">1. High-Level Architecture Topology</div>
+      <div style="font-size:8.2pt;color:#475569;margin-bottom:3px;">
+        Clean architectural decoupling: Claude provides the cognitive reasoning layer via Model Context Protocol (MCP), while MeetingPilot executes 100% deterministic persistence with zero AI code inside.
+      </div>
+      <pre class="diagram">
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                   HUMAN-IN-THE-LOOP                                     │
+│           Executive / Product Manager / Team Member (Web Browser / Mobile PWA)          │
+│                               https://meetingpilot-app.web.app                         │
+└───────────────────────────────┬────────────────────────────────▲───────────────────────┘
+                                │                                │
+            Inline Edits, Due Dates, Approvals,         Live Dashboard, Say-Do Metric,
+            One-Click Completion, Priority Toggles      Decision Register, Overdue Alerts
+                                │                                │
+                                ▼                                │
+┌────────────────────────────────────────────────────────────────┴───────────────────────┐
+│                                FRONTEND HOSTING LAYER                                  │
+│             Firebase Hosting (Global Edge CDN · High-Performance Responsive SPA)        │
+└───────────────────────────────┬────────────────────────────────────────────────────────┘
+                                │
+                      REST API Calls (/api/*)
+                                │
+                                ▼
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                            MEETINGPILOT CORE BACKEND ENGINE                            │
+│                      Node.js Express 4.x (Port 3001) · Zero AI Inside                  │
+│                                                                                        │
+│   ┌───────────────────────────┐  ┌───────────────────────────┐  ┌───────────────────┐  │
+│   │   MCP Protocol Handlers   │  │   Zod Validation Engine   │  │  Rate Limiting &  │  │
+│   │   Streamable HTTP /mcp    │  │   Strict Tool Schema      │  │  Security Headers │  │
+│   │   Server-Sent Events /sse │  │   Argument Enforcement    │  │  120 API / 90 MCP │  │
+│   └─────────────▲─────────────┘  └─────────────┬─────────────┘  └───────────────────┘  │
+│                 │                              │                                       │
+│   ┌─────────────┴─────────────┐  ┌─────────────▼─────────────┐  ┌───────────────────┐  │
+│   │   15 Enterprise Tools     │  │   Deterministic Logic     │  │  Verifiable Audit │  │
+│   │   Meetings, Actions,      │  │   Say-Do Ratio Velocity   │  │  Actor Attribution│  │
+│   │   Decisions, Analytics    │  │   Status Calculations     │  │  Claude vs Human  │  │
+│   └───────────────────────────┘  └─────────────┬─────────────┘  └───────────────────┘  │
+└───────────────────────────────┬────────────────┴───────────────────────────────────────┘
+                                │
+         ┌──────────────────────┴──────────────────────┐
+         ▼ (Primary Cloud Persistence)                 ▼ (Automatic Local Failover)
+┌──────────────────────────────────────┐     ┌──────────────────────────────────────┐
+│       SUPABASE CLOUD POSTGRESQL      │     │          SQLITE WAL STORAGE          │
+│   Project: magysstkgdiyqvmfbjjc      │     │   File: ./data/meetingpilot.db       │
+│   Multi-User Cloud Relational DB     │     │   Write-Ahead Logging Local Cache    │
+│   Row Level Security & Realtime      │     │   100% Offline Resilient Execution   │
+└──────────────────────────────────────┘     └──────────────────────────────────────┘
+                                ▲
+                                │
+                  Model Context Protocol (JSON-RPC 2.0)
+                  Public Secure Cloudflare Tunnel
+                  https://yourself-fascinating-detection-began.trycloudflare.com/mcp
+                                │
+┌───────────────────────────────┴────────────────────────────────────────────────────────┐
+│                            COGNITIVE REASONING LAYER (AI PARTNER)                      │
+│                   Anthropic Claude (Desktop / claude.ai / Claude Code CLI)             │
+│   • Ingests messy, unstructured meeting notes & conversational transcripts             │
+│   • Extracts action items, owners, deadlines, priority levels, and decisions          │
+│   • Autonomously invokes MeetingPilot MCP tools based on conversational intent         │
+│   • Customer Bring-Your-Own-AI (BYO-AI) Model: ₹0 inference cost to MeetingPilot      │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+      </pre>
+    </div>
+
+    <!-- 2. End-to-End Data Flow -->
+    <div class="section">
+      <div class="section-title">2. End-to-End Data Flow (10-Step Operational Lifecycle)</div>
+      <div class="grid-2">
+        <div class="card card-indigo">
+          <div class="card-title" style="color:#4338ca;">Step 1 to 5: Conversational Ingestion & Execution</div>
+          <ul>
+            <li><strong>1. Conversational Input:</strong> User pastes meeting transcript or bulleted notes into Claude.</li>
+            <li><strong>2. Contextual Parsing:</strong> Claude reasons over text, disambiguating tasks, owners, and decisions.</li>
+            <li><strong>3. MCP Tool Invocation:</strong> Claude formulates JSON-RPC 2.0 tool calls (<span class="mono">create_meeting</span>, <span class="mono">add_action_item</span>).</li>
+            <li><strong>4. Secure Edge Transit:</strong> Transmitted via Streamable HTTP <span class="mono">POST /mcp</span> over Cloudflare edge tunnel.</li>
+            <li><strong>5. Schema Validation:</strong> MeetingPilot validates arguments against strict Zod type definitions.</li>
+          </ul>
+        </div>
+        <div class="card card-highlight">
+          <div class="card-title" style="color:#166534;">Step 6 to 10: Persistence, Oversight & Closed-Loop</div>
+          <ul>
+            <li><strong>6. Atomic Persistence:</strong> Record stored in Supabase PostgreSQL (or local SQLite WAL fallback).</li>
+            <li><strong>7. Audit Attribution:</strong> State change recorded in <span class="mono">audit_logs</span> attributing <span class="mono">"claude_mcp"</span>.</li>
+            <li><strong>8. Live UI Reflection:</strong> Dashboard (<span class="mono">meetingpilot-app.web.app</span>) renders items in real time.</li>
+            <li><strong>9. Human Veto & Edit:</strong> Human adjusts due date, reassigns owner, or clicks task completed.</li>
+            <li><strong>10. Closed-Loop AI Reflection:</strong> When asked, Claude queries <span class="mono">get_dashboard_summary</span> and reflects the user's edits.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <div><strong>Founder:</strong> Bhargav G K (QA & Support Analyst @ Infor, PMP® Certified)</div>
+    <div>MeetingPilot · Architecture and Implementation Notes · Page 1 of 3</div>
+    <div>meetingpilot-app.web.app</div>
+  </div>
+</div>
+
+<!-- ============================================================================== -->
+<!-- PAGE 2: RESPONSIBILITIES, TOOLS & ASSUMPTIONS -->
+<!-- ============================================================================== -->
+<div class="page">
+  <div>
+    <div class="page-header">
+      <div>
+        <div class="brand-title">
+          <span>MeetingPilot</span>
+          <span class="badge">Responsibilities, Tools & Assumptions</span>
+        </div>
+        <div class="doc-subtitle">Volopay Platform vs. Partners · Engineering Stack · Architectural Axioms</div>
+      </div>
+      <div style="text-align:right;">
+        <span class="badge badge-green">PAGE 2 OF 3</span>
+        <div style="font-size:7.5pt;color:#64748b;margin-top:2px;">Governance & Stack</div>
+      </div>
+    </div>
+
+    <!-- 3. Division of Responsibilities -->
+    <div class="section">
+      <div class="section-title">3. Division of Responsibilities: Volopay vs. Partners</div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:25%;">Entity / Layer</th>
+            <th style="width:25%;">Primary Component</th>
+            <th style="width:50%;">Scope of Responsibilities</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Volopay / MeetingPilot Core</strong></td>
+            <td>System of Record</td>
+            <td>Manages meetings, actions, Decision Register, Say-Do ratio velocity math, audit trail, and responsive web dashboard.</td>
+          </tr>
+          <tr>
+            <td><strong>Volopay Platform Integration</strong></td>
+            <td>Fintech Governance</td>
+            <td>Captures meeting-related financial commitments (<span class="mono">create_spend_approval</span>) and routes to corporate card/budget rails.</td>
+          </tr>
+          <tr>
+            <td><strong>AI Partner (Anthropic Claude)</strong></td>
+            <td>Cognitive Intelligence</td>
+            <td>Speech/text comprehension, intent extraction, priority assignment, and autonomous Model Context Protocol orchestration.</td>
+          </tr>
+          <tr>
+            <td><strong>Database Partner (Supabase)</strong></td>
+            <td>Cloud Persistence</td>
+            <td>Managed PostgreSQL cloud instance, connection pooling, automated backups, and row-level security.</td>
+          </tr>
+          <tr>
+            <td><strong>Edge Partner (Firebase)</strong></td>
+            <td>Frontend Delivery</td>
+            <td>Global Edge CDN hosting, SSL termination, and static asset distribution (<span class="mono">meetingpilot-app.web.app</span>).</td>
+          </tr>
+          <tr>
+            <td><strong>Network Partner (Cloudflare)</strong></td>
+            <td>Secure Edge Ingress</td>
+            <td>Zero-trust QUIC/HTTPS tunnel exposing the local microservice without open inbound firewall ports.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 4. Tools Used -->
+    <div class="section">
+      <div class="section-title">4. Tools & Technologies Used</div>
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-title" style="color:#4f46e5;">Runtime & MCP Protocol</div>
+          <ul>
+            <li><strong>Node.js v24.14 LTS:</strong> Asynchronous engine.</li>
+            <li><strong>Express 4.x:</strong> REST API & security middleware.</li>
+            <li><strong>@modelcontextprotocol/sdk:</strong> Official MCP implementation (Streamable HTTP & SSE).</li>
+            <li><strong>Zod v3.25:</strong> Strict runtime argument validation.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title" style="color:#059669;">Databases & Persistence</div>
+          <ul>
+            <li><strong>Supabase Cloud PostgreSQL:</strong> Multi-user cloud relational persistence.</li>
+            <li><strong>better-sqlite3:</strong> Write-Ahead Logging (WAL) local database for zero-downtime offline fallback.</li>
+            <li><strong>Audit Trail Engine:</strong> Verifiable attribution.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title" style="color:#7c3aed;">Frontend & Tooling</div>
+          <ul>
+            <li><strong>Firebase Edge Hosting:</strong> SPA hosting.</li>
+            <li><strong>Vanilla JavaScript & CSS3:</strong> Zero framework latency, light/dark themes.</li>
+            <li><strong>pptxgenjs & docx:</strong> Programmatic pitch deck and Word document synthesis.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. Architectural Assumptions -->
+    <div class="section">
+      <div class="section-title">5. Architectural Assumptions</div>
+      <div class="card" style="padding:6px 10px;">
+        <div class="grid-2">
+          <ul>
+            <li><strong>Bring Your Own AI (BYO-AI):</strong> Customers provide their own Claude accounts (Desktop/Web/CLI). MeetingPilot pays ₹0 in inference fees, maintaining 97.5%+ gross margins.</li>
+            <li><strong>Deterministic Relational Storage:</strong> Business records (deadlines, owners, priority, status) must live in relational SQL, eliminating LLM hallucination in corporate data.</li>
+          </ul>
+          <ul>
+            <li><strong>Human Agency Priority:</strong> AI proposes and queries commitments; human users retain unconditional authority to edit, postpone, reassign, or cancel tasks.</li>
+            <li><strong>Multi-Tenant Workspace Partitioning:</strong> Records are logically grouped by Workspace (Product & Engineering, Leadership, Sales) for organizational isolation.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <div><strong>Founder:</strong> Bhargav G K (QA & Support Analyst @ Infor, PMP® Certified)</div>
+    <div>MeetingPilot · Architecture and Implementation Notes · Page 2 of 3</div>
+    <div>meetingpilot-app.web.app</div>
+  </div>
+</div>
+
+<!-- ============================================================================== -->
+<!-- PAGE 3: BUILT VS PROPOSED, LIMITATIONS & ROADMAP -->
+<!-- ============================================================================== -->
+<div class="page">
+  <div>
+    <div class="page-header">
+      <div>
+        <div class="brand-title">
+          <span>MeetingPilot</span>
+          <span class="badge">Built vs. Proposed Production System</span>
+        </div>
+        <div class="doc-subtitle">Prototype Realities · Enterprise Scale-Out Architecture · Roadmap</div>
+      </div>
+      <div style="text-align:right;">
+        <span class="badge badge-green">PAGE 3 OF 3</span>
+        <div style="font-size:7.5pt;color:#64748b;margin-top:2px;">Production Roadmap</div>
+      </div>
+    </div>
+
+    <!-- 6. What Was Built vs Proposed Production System -->
+    <div class="section">
+      <div class="section-title">6. Distinguishing What Was Built vs. Proposed Production System</div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:20%;">Dimension</th>
+            <th style="width:40%;">What We Built (Live Working System)</th>
+            <th style="width:40%;">Proposed Production System (Scale-Out)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>MCP Toolset</strong></td>
+            <td><strong>15 Fully Functional Tools</strong> covering meetings, actions, decisions, and analytics; verified in Claude.</td>
+            <td>15 Tools + Automated Background Worker for scheduled deadline escalation & reminders.</td>
+          </tr>
+          <tr>
+            <td><strong>Authentication</strong></td>
+            <td><strong>Bearer Token Auth</strong> (<span class="mono">MCP_API_TOKEN</span>) with public evaluation demo mode.</td>
+            <td><strong>OAuth 2.0 / OpenID Connect</strong> with user-delegated tokens and SAML SSO (Okta / Azure AD).</td>
+          </tr>
+          <tr>
+            <td><strong>Database</strong></td>
+            <td><strong>Dual-Engine:</strong> Supabase PostgreSQL cloud instance + automatic SQLite WAL offline fallback.</td>
+            <td>Multi-tenant PostgreSQL with isolated customer schemas and automated geo-replication.</td>
+          </tr>
+          <tr>
+            <td><strong>Deployment</strong></td>
+            <td><strong>Firebase Edge Hosting</strong> (Frontend) + <strong>Cloudflare Tunnel</strong> (Backend microservice).</td>
+            <td><strong>Google Cloud Run / Kubernetes (EKS)</strong> auto-scaling containers behind Cloudflare Load Balancers.</td>
+          </tr>
+          <tr>
+            <td><strong>Rate Limiting</strong></td>
+            <td>In-memory sliding-window rate limiter (120 API / 90 MCP req/min).</td>
+            <td><strong>Distributed Redis Cluster</strong> (Upstash / ElastiCache) across availability zones.</td>
+          </tr>
+          <tr>
+            <td><strong>Volopay Integration</strong></td>
+            <td>Spend approval tracking tools (<span class="mono">create_spend_approval</span>, <span class="mono">approve_action</span>).</td>
+            <td><strong>Direct Volopay Core API Bridge:</strong> Automated virtual card provisioning upon meeting approval.</td>
+          </tr>
+          <tr>
+            <td><strong>Integrations</strong></td>
+            <td>Outgoing webhook dispatch endpoints.</td>
+            <td><strong>Native Bi-Directional Slack & MS Teams Apps</strong> with interactive approval buttons.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 7. Limitations & Next Steps -->
+    <div class="section">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title" style="color:#b91c1c;">7. Prototype Limitations</div>
+          <ul>
+            <li><strong>Shared Token Scope:</strong> Uses a shared bearer token rather than per-seat OAuth 2.0 PKCE user authorization.</li>
+            <li><strong>In-Memory Rate Limiting:</strong> Rate limit state is in-process; horizontal scaling requires centralized Redis.</li>
+            <li><strong>Manual Audio Input:</strong> Processes transcripts/notes pasted into Claude; continuous audio streaming requires external STT.</li>
+          </ul>
+        </div>
+        <div class="card card-highlight">
+          <div class="card-title" style="color:#166534;">8. Next Steps & Development Roadmap</div>
+          <ul>
+            <li><strong>Phase 1 (Q1 2027): Volopay Card Bridge:</strong> Issue single-use virtual cards for approved meeting budgets; add OAuth 2.0.</li>
+            <li><strong>Phase 2 (Q2 2027): Omnichannel Sync:</strong> Bi-directional Slack & Teams bots; Google/Outlook calendar sync.</li>
+            <li><strong>Phase 3 (Q3 2027): Agenda Rollover:</strong> Automatically roll incomplete tasks into next week's meeting agenda.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 8. Live Verification Links -->
+    <div class="section" style="margin-bottom:0;">
+      <div class="card card-indigo" style="padding:6px 10px;">
+        <div style="font-weight:700; color:#1e1b4b; margin-bottom:3px;">Live Production Links & Verification Artifacts</div>
+        <div class="grid-3" style="font-size:7.8pt;">
+          <div><strong>Live Web App:</strong> <a href="https://meetingpilot-app.web.app" style="color:#4338ca; text-decoration:none;">meetingpilot-app.web.app</a></div>
+          <div><strong>Live MCP Endpoint:</strong> <span class="mono">...trycloudflare.com/mcp</span></div>
+          <div><strong>GitHub Codebase:</strong> <a href="https://github.com/applicationmanifester/MeetingPilot" style="color:#4338ca; text-decoration:none;">applicationmanifester/MeetingPilot</a></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <div><strong>Founder:</strong> Bhargav G K (QA & Support Analyst @ Infor, PMP® Certified)</div>
+    <div>MeetingPilot · Architecture and Implementation Notes · Page 3 of 3</div>
+    <div>meetingpilot-app.web.app</div>
+  </div>
+</div>
+
+</body>
+</html>
