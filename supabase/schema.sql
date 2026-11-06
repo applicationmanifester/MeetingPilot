@@ -1,5 +1,5 @@
 -- ==============================================================================
--- MeetingPilot Supabase PostgreSQL Schema & Realtime Setup
+-- MeetingPilot Supabase PostgreSQL Schema
 -- Zero AI inside · Official PostgreSQL schema for MeetingPilot
 -- ==============================================================================
 
@@ -60,8 +60,8 @@ CREATE TABLE IF NOT EXISTS public.webhooks (
 );
 
 -- ==============================================================================
--- Row Level Security (RLS) Configuration
--- Allows full CRUD for anonymous and authenticated clients (Open Workspace model)
+-- Row Level Security. The Node server uses a server-only Supabase key.
+-- Do not grant public/anon CRUD access to the shared demo tables.
 -- ==============================================================================
 ALTER TABLE public.workspaces ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.meetings ENABLE ROW LEVEL SECURITY;
@@ -69,37 +69,11 @@ ALTER TABLE public.actions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.webhooks ENABLE ROW LEVEL SECURITY;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Access Workspaces' AND tablename = 'workspaces') THEN
-    CREATE POLICY "Public Access Workspaces" ON public.workspaces FOR ALL USING (true) WITH CHECK (true);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Access Meetings' AND tablename = 'meetings') THEN
-    CREATE POLICY "Public Access Meetings" ON public.meetings FOR ALL USING (true) WITH CHECK (true);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Access Actions' AND tablename = 'actions') THEN
-    CREATE POLICY "Public Access Actions" ON public.actions FOR ALL USING (true) WITH CHECK (true);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Access Audit Logs' AND tablename = 'audit_logs') THEN
-    CREATE POLICY "Public Access Audit Logs" ON public.audit_logs FOR ALL USING (true) WITH CHECK (true);
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public Access Webhooks' AND tablename = 'webhooks') THEN
-    CREATE POLICY "Public Access Webhooks" ON public.webhooks FOR ALL USING (true) WITH CHECK (true);
-  END IF;
-END $$;
-
--- Enable Realtime Broadcast for Live Dashboard Sync
-DO $$
-BEGIN
-  BEGIN
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.actions;
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.meetings;
-    ALTER PUBLICATION supabase_realtime ADD TABLE public.audit_logs;
-  EXCEPTION
-    WHEN duplicate_object THEN NULL;
-    WHEN undefined_object THEN NULL;
-  END;
-END $$;
+DROP POLICY IF EXISTS "Public Access Workspaces" ON public.workspaces;
+DROP POLICY IF EXISTS "Public Access Meetings" ON public.meetings;
+DROP POLICY IF EXISTS "Public Access Actions" ON public.actions;
+DROP POLICY IF EXISTS "Public Access Audit Logs" ON public.audit_logs;
+DROP POLICY IF EXISTS "Public Access Webhooks" ON public.webhooks;
 
 -- ==============================================================================
 -- Default Workspaces & Seed Data

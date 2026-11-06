@@ -32,8 +32,41 @@ import {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
+app.set('trust proxy', 1);
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  next();
+});
+
+function rateLimit(maxRequests, windowMs) {
+  const requests = new Map();
+  return (req, res, next) => {
+    const now = Date.now();
+    if (requests.size > 5000) {
+      for (const [address, value] of requests) if (value.resetAt <= now) requests.delete(address);
+    }
+    const key = req.ip || req.socket.remoteAddress || 'unknown';
+    const entry = requests.get(key);
+    if (!entry || entry.resetAt <= now) {
+      requests.set(key, { count: 1, resetAt: now + windowMs });
+      return next();
+    }
+    entry.count += 1;
+    if (entry.count > maxRequests) {
+      res.setHeader('Retry-After', Math.ceil((entry.resetAt - now) / 1000));
+      return res.status(429).json({ error: 'Too many requests. Try again shortly.' });
+    }
+    next();
+  };
+}
+
+app.use('/api', rateLimit(120, 60_000));
+app.use(['/mcp', '/sse', '/messages'], rateLimit(90, 60_000));
 
 // Initial seed if empty
 seedDemoData(false).catch(err => console.error('Seed error:', err));
@@ -236,8 +269,12 @@ app.get('/health', async (_req, res) => res.json({
 }));
 
 app.post('/api/seed-sample', async (req, res) => {
+  if (process.env.ENABLE_DEMO_SEED !== 'true') {
+    return res.status(404).json({ error: 'Demo seeding is disabled.' });
+  }
   try {
-    await seedDemoData(req.query.clear === 'true');
+    // Seeding is idempotent and must never clear a shared database.
+    await seedDemoData(false);
     res.json({ ok: true, message: 'Sample company data populated.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -440,7 +477,7 @@ app.get('/mcp', async (req, res) => {
     status: 'active',
     database: isUsingSupabase() ? 'Supabase PostgreSQL' : 'SQLite WAL',
     transport: 'streamable-http',
-    authentication: 'none',
+    authentication: process.env.MCP_API_TOKEN ? 'bearer token required' : 'none',
     endpoints: {
       streamableHttp: '/mcp (POST)',
       serverSentEvents: '/sse (GET)'

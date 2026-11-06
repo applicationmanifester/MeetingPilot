@@ -3,7 +3,7 @@
 > **Pitch Video Rules Checklist:**
 > - Length: Under 5 minutes (target 4:20 - 4:45)
 > - Must cover: 1) Who you are, 2) Your best work, 3) Why this business will win, 4) Live demo, 5) The economics.
-> - Must show: Real deployed app (`https://meetingpilot-app.web.app`), real Claude MCP connector (`https://b617ed4c4494b3.lhr.life/mcp`), Decision Register, Say-Do ratio tracking, and human editing in the UI.
+> - Before recording: deploy the Node service from `render.yaml`, set `SUPABASE_SERVICE_ROLE_KEY`, and replace the app/MCP placeholders below with the verified service URL. The old public tunnel is offline, so do not claim the current hosted app is connected until the live handshake succeeds.
 
 ---
 
@@ -21,7 +21,7 @@
 ---
 
 ### Part 2: The Problem & The Business (0:35 – 1:15)
-**Visual:** Show slide or MeetingPilot landing screen at `https://meetingpilot-app.web.app`.
+**Visual:** Show the deployed dashboard after verifying `/health` and the MCP handshake. Use `[LIVE_APP_URL]` until deployment is complete.
 
 > "Meetings are only valuable if decisions turn into execution. Today, teams spend hours in syncs, but after the call ends, nobody wants to spend 20 minutes manually filing Jira tickets or updating complex Asana boards. 
 > 
@@ -37,7 +37,7 @@
 **Visual:** Screen recording showing MeetingPilot dashboard on the left and Claude on the right (split screen).
 
 > **Step 1: The Live Workspace & Connection Handshake (1:15 – 1:35)**  
-> *"Here is the live MeetingPilot dashboard running on Firebase at `meetingpilot-app.web.app`. Notice our live connection status: `Backend: Online (15 tools)`. I can click '🧪 Test Handshake' and instantly verify round-trip latency to our live MCP endpoint."*
+> *"Here is the MeetingPilot dashboard at [LIVE_APP_URL]. The connection indicator checks the actual backend and MCP endpoint, so we can see the measured response time and available tools before using the app."*
 > 
 > **Step 2: Driving from Claude via MCP (1:35 – 2:15)**  
 > *"Now let's switch to Claude. We've connected MeetingPilot via Claude's official custom connector settings. I will give Claude raw conversational notes from an architecture sync:*
@@ -73,7 +73,7 @@
 ### Part 5: The Economics & Margins (3:45 – 4:30)
 **Visual:** Economics slide / visual breakdown.
 
-> "Let's talk about the business model and unit economics:
+> "Let's talk about the proposed business model and projected unit economics:
 > 
 > **Revenue Model:** Subscription SaaS:
 > - **Free Tier:** 1 workspace, up to 3 meetings per month.
@@ -85,11 +85,11 @@
 > Most AI wrappers pay $0.05 to $0.20 per query in OpenAI/Anthropic API fees, crushing their gross margins down to 40% or worse. 
 > 
 > MeetingPilot pays **₹0 in AI inference costs**.
-> Our only operating cost is hosting: a small container with persistent storage running at approximately ₹600 ($7) per month. 
+> There are no model inference costs inside the app. Hosting, database, and payment costs still need to be validated against the chosen production plans and actual usage; ₹600 per month is an early estimate, not a confirmed quote.
 > 
 > At a modest initial cohort of **100 team customers on the ₹1,499 plan**:
 > - **Gross Monthly Revenue:** ₹1,49,900 (~$1,800/mo)
-> - **Hosting Cost:** ~₹600
+> - **Hosting Cost:** ~₹600 estimated; validate before presenting as actual
 > - **Payment Gateway Fees (2%):** ~₹3,000
 > - **Net Monthly Margin:** Over **97.5% gross margin**.
 > 
@@ -100,16 +100,16 @@
 ### Part 6: Close (4:30 – 4:50)
 **Visual:** Camera.
 
-> "MeetingPilot demonstrates the true promise of the Model Context Protocol: letting frontier AI models provide the intelligence, while lightweight, focused web applications provide dependable, editable execution.
+> "MeetingPilot demonstrates the promise of the Model Context Protocol: letting the customer's AI provide the intelligence, while a focused web app provides dependable, editable execution.
 > 
-> You can try MeetingPilot right now at `meetingpilot-app.web.app`, connect it to your Claude in 30 seconds via our live MCP endpoint, and see it in action.
+> You can try MeetingPilot at [LIVE_APP_URL] and connect Claude through [LIVE_MCP_URL] once the deployment is live.
 > 
 > Thank you!"
 
 ---
 
 ## 📋 Quick Cheat-Sheet for Recording
-- [ ] Have the live deployed dashboard open: `https://meetingpilot-app.web.app`.
+- [ ] Replace `[LIVE_APP_URL]` and `[LIVE_MCP_URL]` after deployment, and verify the handshake from the public internet.
 - [ ] Have Claude (claude.ai or Claude Desktop) open in an adjacent window.
-- [ ] Test the connection once before recording (run a quick handshake test, then click "Seed demo data").
+- [ ] Test the connection once before recording. Seed data through the SQL setup only on a fresh demo project; the public seed endpoint is disabled by default.
 - [ ] Keep a stopwatch handy on your phone to stay right at the ~4:30 mark.

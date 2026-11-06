@@ -13,9 +13,14 @@ const id = () => randomUUID();
 
 // Check if Supabase credentials exist
 const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+// Prefer the server-only credential in hosted environments. SUPABASE_KEY is
+// retained for local demo setups that intentionally use public RLS policies.
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 const useSupabase = Boolean(supabaseUrl && supabaseKey);
+if (process.env.NODE_ENV === 'production' && supabaseUrl && !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error('Production requires SUPABASE_SERVICE_ROLE_KEY. Do not run the app with a public key and open demo RLS policies.');
+}
 let supabase = null;
 let sqliteDb = null;
 
