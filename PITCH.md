@@ -14,7 +14,7 @@
 
 > "Hi everyone, I'm **Bhargav G K**. I'm a QA and Customer Support Analyst at Infor in Bengaluru with over three years of experience specializing in enterprise ERP systems, order-to-cash workflows, and billing operations. I'm also a certified Project Management Professional (PMP). 
 > 
-> Outside my day job, I love building focused, highly practical software. Some of my favorite projects include **Billit**, an automated invoicing application, **Aurafisky**, a high-performance weather PWA, and **Inaviato**, a live flight-tracking tool.
+> Outside my day job, I love building focused, highly practical software. Some of my favorite projects include **Billit**, an automated invoicing application, **Aurafisky**, a high-performance weather PWA, and **Yogatik**, a privacy-first browser-native AI companion and agent.
 > 
 > Having spent years in project management and customer operations, I've observed a massive, universal friction point: meetings create commitments, but those commitments almost immediately get lost between messy notes, Slack threads, and forgotten docs."
 

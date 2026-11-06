@@ -308,10 +308,10 @@ function drawCard(slide, { x, y, w, h, bg = C.cardBg, border = C.cardBorder, acc
       desc: 'Meteorological dashboard featuring sub-second geolocation weather forecasting, interactive radar imagery, and resilient offline service worker caching.'
     },
     {
-      name: 'Inaviato — Live Flight Telemetry Tracker',
-      badge: 'REALTIME STREAMING',
+      name: 'Yogatik — Browser-First AI Companion & Agent',
+      badge: 'ZERO-BACKEND AI',
       color: C.amber,
-      desc: 'Real-time aviation tracking and flight status telemetry dashboard consuming live ADS-B radar feeds with zero-latency spatial visualization.'
+      desc: 'Privacy-first, browser-native AI companion and agent featuring 65 autonomous tools, real-time voice, vision, and client-side encrypted IndexedDB persistence.'
     }
   ];
 
