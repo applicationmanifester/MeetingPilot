@@ -21,6 +21,7 @@
     "zod": "^3.25.0"
   },
   "devDependencies": {
+    "docx": "^9.15.2",
     "pptxgenjs": "^4.0.1"
   }
 }
